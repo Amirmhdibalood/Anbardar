@@ -5,6 +5,7 @@ import { Button, ButtonLink } from '../components/Button'
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { EmptyState } from '../components/EmptyState'
 import { Field, TextArea } from '../components/Field'
+import { InvoicePaymentCard } from '../components/invoice/InvoicePaymentCard'
 import { PageHeader } from '../components/PageHeader'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
@@ -117,10 +118,11 @@ export default function PurchaseDetailPage() {
           </div>
         )}
         <div className={styles.grand}>
-          <span>مبلغ پرداختی</span>
+          <span>مبلغ فاکتور</span>
           <strong data-testid="invoice-total">{formatMoney(invoice.totalAmount)}</strong>
         </div>
       </div>
+      <InvoicePaymentCard kind="purchase" invoiceId={invoice.id} partyId={invoice.supplierId} systemParty={!!supplier?.isSystem} cancelled={cancelled} />
       {!cancelled && (
         <div className={styles.actionStack}>
           <ButtonLink variant="secondary" icon="plus" block to={`/purchases/${id}/return`}>

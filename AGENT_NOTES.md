@@ -25,3 +25,11 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
 - Landscape side cutouts: safe-area-inset-left/right not applied.
 - package.json engines node>=22.
 - Future: Myket billing + trial (see conversation), invoice-level discount UI.
+
+## Stage 1 (v1.1.0): parties and money
+- Design and decisions: `docs/parties-and-money.md`. Schema: `src/database/migrations/006_parties_money.ts`.
+- Service: `src/services/moneyService.ts`. Repo: `src/repositories/sqlite/moneyRepository.ts`.
+- UI: `src/pages/parties/PartiesPage.tsx`, `PartyLedgerPage`, `MoneyFormPage`, `MoneyListPage`, `MoneyDetailPage`, `BalancesPage`, `components/invoice/PaymentSection.tsx` and `InvoicePaymentCard.tsx`.
+- Routes: `/more/parties`. `/more/customers` and `/more/suppliers` are the same list, pre-filtered. Also `/parties/:id`, `/money`, `/money/new?kind=&party=&invoice=`, `/money/:id` and `/balances`.
+- E2E: `node scripts/e2e-money.mjs` with `npx vite preview --port 4173 --host 0.0.0.0`. Some scripts use 127.0.0.1, so bind all interfaces.
+- e2e-purchases section 12 was rewritten for the new parties UX: a row opens the ledger, and edit/delete is under the edit icon.

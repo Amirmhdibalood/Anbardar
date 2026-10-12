@@ -210,3 +210,15 @@
   0% { background-position: 100% 0; }
   100% { background-position: -100% 0; }
 }
+
+.balancesLink {
+  display: block;
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 14px;
+}

@@ -13,6 +13,7 @@ import { nowIso } from '../utils/time'
 import { cleanText } from '../validation/fields'
 import { validateInvoice } from '../validation/entities'
 import { createInventoryService } from './inventoryService'
+import type { PaymentStatus } from '../models/money'
 import { cancelAutoDocuments, recordInvoicePayment } from './moneyService'
 import { resolvePaidAmount } from './paidAmount'
 
@@ -45,6 +46,7 @@ export interface PurchaseListRow {
   invoice: PurchaseInvoice
   supplierName: string
   itemCount: number
+  payment?: PaymentStatus
 }
 
 export interface PurchaseDetail {
@@ -149,7 +151,8 @@ export function createPurchaseService(db: SqlExecutor) {
           ? await r.purchaseInvoices.list({ ...base, invoiceNumber: Number(latin) })
           : await r.purchaseInvoices.list({ ...base, text: { reference: latin, partyIds: suppliers.filter((s) => s.name.includes(search)).map((s) => s.id) } })
       const counts = await r.purchaseInvoices.itemCounts(invoices.map((i) => i.id))
-      return invoices.map((invoice) => ({ invoice, supplierName: names.get(invoice.supplierId) ?? '—', itemCount: counts[invoice.id] ?? 0 }))
+      const pay = await r.money.invoiceSettlements('purchase', invoices.filter((i) => i.status === 'active').map((i) => i.id))
+      return invoices.map((invoice) => ({ invoice, supplierName: names.get(invoice.supplierId) ?? '—', itemCount: counts[invoice.id] ?? 0, payment: pay.get(invoice.id)?.status }))
     },
 
     async detail(id: string): Promise<PurchaseDetail | null> {

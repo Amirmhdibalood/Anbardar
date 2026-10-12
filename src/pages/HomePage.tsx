@@ -62,6 +62,20 @@ export default function HomePage() {
         </Link>
       </div>
 
+      <Link to="/balances" className={styles.balanceCard} aria-label="بدهکاران و بستانکاران" data-testid="home-balances">
+        <Card className={styles.balanceInner}>
+          <div className={styles.balanceCol}>
+            <span className={styles.statLabel}>طلب از بدهکاران{summary.debtorCount > 0 ? ` (${formatInteger(summary.debtorCount)} نفر)` : ''}</span>
+            <strong className={`${styles.statValue} ${styles.receivable}`}>{money(summary.receivable, { withUnit: false })}</strong>
+          </div>
+          <div className={styles.balanceCol}>
+            <span className={styles.statLabel}>بدهی به بستانکاران{summary.creditorCount > 0 ? ` (${formatInteger(summary.creditorCount)} نفر)` : ''}</span>
+            <strong className={`${styles.statValue} ${styles.payable}`}>{money(summary.payable, { withUnit: false })}</strong>
+          </div>
+          <Icon name="chevronLeft" size={18} />
+        </Card>
+      </Link>
+
       <Section title="فروش‌های اخیر">
         <Card>
           <EmptyState compact icon="file" title="هنوز فروشی ثبت نشده" description="با اولین فروش، فهرست آخرین فاکتورها اینجا نمایش داده می‌شود." />

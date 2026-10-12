@@ -14,6 +14,7 @@ export default function PurchasesPage() {
       totalAmount: r.invoice.totalAmount,
       invoiceDate: r.invoice.invoiceDate,
       status: r.invoice.status,
+      payment: r.payment,
     }))
   }, [])
   return (

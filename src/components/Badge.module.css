@@ -28,3 +28,8 @@
   background: var(--error-soft);
   color: var(--error);
 }
+
+.success {
+  background: var(--success-soft);
+  color: var(--success);
+}

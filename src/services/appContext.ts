@@ -7,6 +7,7 @@ import { createStockService } from './inventoryService'
 import { createPurchaseService } from './purchaseService'
 import { createSaleService } from './saleService'
 import { createExpenseService } from './expenseService'
+import { createMoneyService } from './moneyService'
 import { createReportService } from './reportService'
 import { createReturnService, createTransferService } from './returnService'
 import { AppError } from '../utils/errors'
@@ -108,4 +109,11 @@ let transferService: ReturnType<typeof createTransferService> | null = null
 export function getTransfers(): ReturnType<typeof createTransferService> {
   transferService ??= createTransferService(getApp().db)
   return transferService
+}
+
+let moneyService: ReturnType<typeof createMoneyService> | null = null
+/** سرویس دریافت/پرداخت، مانده و دفتر طرف حساب */
+export function getMoney(): ReturnType<typeof createMoneyService> {
+  moneyService ??= createMoneyService(getApp().db)
+  return moneyService
 }

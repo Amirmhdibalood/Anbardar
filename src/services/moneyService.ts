@@ -9,7 +9,8 @@ import {
   type MoneyMethod,
   type MoneySource,
 } from '../models/money'
-import type { Party } from '../models/party'
+import type { Party, PartyInput } from '../models/party'
+import { createCatalogService } from './catalogService'
 import { createRepositories } from '../repositories'
 import { compareFa } from '../utils/collate'
 import { AppError, ValidationError } from '../utils/errors'
@@ -171,6 +172,15 @@ export function createMoneyService(db: SqlExecutor) {
       })
     },
 
+    /** ساخت طرف حساب جدید و (اختیاری) مانده اول دوره‌اش در یک تراکنش */
+    async createPartyWithOpening(input: PartyInput, opening: Omit<OpeningBalanceInput, 'partyId'> | null): Promise<Party> {
+      return db.transaction(async (tx) => {
+        const party = await createCatalogService(tx).parties.create(input)
+        if (opening && opening.amount > 0) await createMoneyService(tx).createOpening({ ...opening, partyId: party.id })
+        return party
+      })
+    },
+
     /** ابطال سند دستی؛ تخصیص‌هایش بی‌اثر می‌شوند. سند خودکار فقط با ابطال سند مبدأ باطل می‌شود. */
     async cancel(id: string, reason?: string | null): Promise<void> {
       const why = cleanText(reason) || null
@@ -196,6 +206,24 @@ export function createMoneyService(db: SqlExecutor) {
     documentsForInvoice: (kind: InvoiceKind, invoiceId: string) => createRepositories(db).money.documentsForInvoice(kind, invoiceId),
     balanceOf: (partyId: string) => createRepositories(db).money.balanceOf(partyId),
     ledger: (partyId: string): Promise<LedgerEntry[]> => createRepositories(db).money.ledger(partyId),
+
+    /** سند با طرف حساب و فاکتورهای تخصیص‌یافته (برای صفحه جزئیات) */
+    async detail(id: string) {
+      const r = createRepositories(db)
+      const doc = await r.money.getDocument(id)
+      if (!doc) return null
+      const party = await r.parties.getById(doc.partyId)
+      const settlements = await r.money.settlementsOfDocument(id)
+      const allocations = []
+      for (const s of settlements) {
+        const kind: InvoiceKind = s.salesInvoiceId ? 'sales' : 'purchase'
+        const invoiceId = (s.salesInvoiceId ?? s.purchaseInvoiceId)!
+        const table = kind === 'sales' ? 'sales_invoices' : 'purchase_invoices'
+        const row = await db.get(`SELECT invoice_number, status FROM ${table} WHERE id = ?`, [invoiceId])
+        allocations.push({ kind, invoiceId, amount: s.amount, number: row ? Number(row['invoice_number']) : 0, invoiceStatus: row ? String(row['status']) : 'missing' })
+      }
+      return { document: doc, party, allocations }
+    },
 
     /** مانده همه طرف‌ها (برای فهرست طرف حساب) */
     async balanceMap(): Promise<Map<string, Money>> {

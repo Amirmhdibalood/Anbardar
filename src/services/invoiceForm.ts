@@ -27,6 +27,10 @@ export interface InvoiceDraft {
   discount: string
   note: string
   lines: LineDraft[]
+  /** full = کامل نقدی (پیش‌فرض، جریان سریع)؛ credit = نسیه یا بخشی پرداخت‌شده */
+  payMode?: 'full' | 'credit'
+  /** مبلغ پرداختی در حالت نسیه (خالی = ۰) */
+  paid?: string
 }
 
 export interface DraftTotals {
@@ -44,6 +48,8 @@ export interface DraftInput {
   reference: string | null
   note: string | null
   discount: number
+  /** فقط در حالت نسیه؛ نبودن = کل فاکتور */
+  paidAmount?: number
   items: InvoiceItemInput[]
 }
 
@@ -115,6 +121,13 @@ export function draftToInput(draft: InvoiceDraft, now = new Date()): { ok: true;
   if (discount === null || discount > MAX_AMOUNT) errors['discount'] = 'تخفیف فاکتور معتبر نیست.'
   else if (discount > totals.subtotal) errors['discount'] = 'تخفیف فاکتور نمی‌تواند از جمع فاکتور بیشتر باشد.'
   if (totals.subtotal > MAX_AMOUNT) errors['items'] = 'جمع فاکتور بیش از حد مجاز است.'
+  let paidAmount: number | undefined
+  if (draft.payMode === 'credit') {
+    const paid = money(draft.paid ?? '')
+    if (paid === null || /[.٫]/.test(draft.paid ?? '')) errors['paidAmount'] = 'مبلغ پرداختی باید عدد صحیح (تومان) باشد.'
+    else if (paid > totals.total) errors['paidAmount'] = 'مبلغ پرداختی از جمع فاکتور بیشتر است.'
+    else paidAmount = paid
+  }
   if (Object.keys(errors).length) return { ok: false, errors }
   return {
     ok: true,
@@ -125,6 +138,7 @@ export function draftToInput(draft: InvoiceDraft, now = new Date()): { ok: true;
       reference: draft.reference.trim() || null,
       note: draft.note.trim() || null,
       discount: discount ?? 0,
+      ...(paidAmount === undefined ? {} : { paidAmount }),
       items,
     },
   }

@@ -17,6 +17,7 @@ import { JalaliDatePicker } from '../JalaliDatePicker'
 import { PageHeader } from '../PageHeader'
 import { PartySheet } from '../PartySheet'
 import { ProductPicker } from './ProductPicker'
+import { PaymentSection } from './PaymentSection'
 import styles from './Invoice.module.css'
 
 type Party = Customer | Supplier
@@ -60,6 +61,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     discount: '',
     note: '',
     lines: [],
+    payMode: 'full',
+    paid: '',
   }))
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -253,6 +256,23 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         </div>
         {errors['discount'] && <p className={styles.lineError}>{errors['discount']}</p>}
         <p className={styles.discountHint}>{kind === 'purchase' ? 'تخفیف از مبلغی که می‌پردازید کم می‌شود و بهای کالاها را هم کم می‌کند.' : 'تخفیف از مبلغی که از مشتری می‌گیرید کم می‌شود.'}</p>
+
+        <PaymentSection
+          kind={kind}
+          party={parties.find((p) => p.id === draft.partyId) ?? null}
+          payMode={draft.payMode ?? 'full'}
+          paid={draft.paid ?? ''}
+          total={totals.total}
+          error={errors['paidAmount']}
+          onChange={(patch) => {
+            update(patch)
+            setErrors((e) => {
+              const next = { ...e }
+              delete next['paidAmount']
+              return next
+            })
+          }}
+        />
 
         {formError && (
           <div className={styles.errorBox} role="alert">

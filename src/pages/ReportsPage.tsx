@@ -95,6 +95,9 @@ export default function ReportsPage() {
           <Chip key={t.id} label={t.label} selected={tab === t.id} onClick={() => setTab(t.id)} />
         ))}
       </div>
+      <Link to="/balances" className={styles.balancesLink} data-testid="balances-link">
+        بدهکاران و بستانکاران ←
+      </Link>
 
       {tab !== 'alerts' && (
         <>

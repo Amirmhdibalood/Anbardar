@@ -64,7 +64,7 @@ export default function NewSalePage() {
         </p>
       )}
       submitLabel="ثبت فروش"
-      totalLabel="مبلغ دریافتی"
+      totalLabel="جمع فاکتور"
       onBack={goBack}
       onSubmit={async (input) => {
         const { invoice } = await getSales().create({ ...input, customerId: input.partyId })

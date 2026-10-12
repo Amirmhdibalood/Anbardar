@@ -54,7 +54,7 @@ export default function NewPurchasePage() {
       createParty={(input) => getCatalog().suppliers.create(input)}
       suggestPrice={(p) => getPurchases().lastPurchasePrice(p.id)}
       submitLabel="ثبت خرید"
-      totalLabel="مبلغ پرداختی"
+      totalLabel="جمع فاکتور"
       onBack={goBack}
       onSubmit={async (input) => {
         const { invoice } = await getPurchases().create({ ...input, supplierId: input.partyId })

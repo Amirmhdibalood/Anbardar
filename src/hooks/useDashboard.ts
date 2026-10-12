@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { getDashboardSummary, type DashboardSummary } from '../services/dashboardService'
 import { logger } from '../utils/logger'
 
-const EMPTY: DashboardSummary = { productCount: 0, todaySales: 0, lowStockCount: 0 }
+const EMPTY: DashboardSummary = { productCount: 0, todaySales: 0, lowStockCount: 0, receivable: 0, payable: 0, debtorCount: 0, creditorCount: 0 }
 
 export function useDashboard(): DashboardSummary {
   const [summary, setSummary] = useState<DashboardSummary>(EMPTY)

@@ -170,3 +170,9 @@ User skipped the widget; proceeding with my recommendation: ADD a simple «ثب�
 
 ## USER CONFIRMATION Q6 (Oct 5, 2026, 10:11)
 User explicitly confirmed: ADD «ثبت هزینه» (expense entry). Proceed with Phase 8 including expenses in P&L and pie chart.
+
+## Roadmap stage 1: parties and money documents (v1.1.0, Oct 12, 2026)
+- Migration 006 adds unified `parties` (customer/supplier/both). The old customers/suppliers are migrated losslessly and the system defaults are kept. It also adds `money_documents` (receipt/payment/opening), `settlements` (allocations to invoices) and auto documents for invoice payments and return refunds. The old `payments` table is kept for history only.
+- Cash stays the default on invoices. «نسیه / بخشی» records a paid amount less than the total (named parties only).
+- Balance comes only from documents. New screens: unified parties list, party ledger, money form (manual allocation with an oldest-first suggestion), money list/detail with cancel, debtors/creditors report, and a home card.
+- Design note: docs/parties-and-money.md. E2E: scripts/e2e-money.mjs (both themes).

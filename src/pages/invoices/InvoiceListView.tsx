@@ -9,6 +9,7 @@ import { PageHeader } from '../../components/PageHeader'
 import { useAsync } from '../../hooks/useAsync'
 import { useGoBack } from '../../hooks/useGoBack'
 import type { InvoiceStatus } from '../../models/invoice'
+import { PAYMENT_STATUS_LABELS, type PaymentStatus } from '../../models/money'
 import type { InvoiceListFilter } from '../../services/purchaseService'
 import { formatPersianDateTime } from '../../utils/date'
 import { formatMoney } from '../../utils/money'
@@ -24,6 +25,8 @@ export interface InvoiceListRow {
   totalAmount: number
   invoiceDate: string
   status: InvoiceStatus
+  /** وضعیت پرداخت (فقط فاکتور فعال) */
+  payment?: PaymentStatus
 }
 
 interface Props {
@@ -110,7 +113,13 @@ export function InvoiceListView({ title, icon, basePath, newPath, newLabel, empt
                 </span>
                 <span className={styles.amount}>
                   <strong>{formatMoney(r.totalAmount, { withUnit: false })}</strong>
-                  {r.status === 'cancelled' ? <Badge tone="error">ابطال‌شده</Badge> : <span>تومان</span>}
+                  {r.status === 'cancelled' ? (
+                    <Badge tone="error">ابطال‌شده</Badge>
+                  ) : r.payment && r.payment !== 'paid' ? (
+                    <Badge tone="warning">{PAYMENT_STATUS_LABELS[r.payment]}</Badge>
+                  ) : (
+                    <span>تومان</span>
+                  )}
                 </span>
               </Link>
             </li>

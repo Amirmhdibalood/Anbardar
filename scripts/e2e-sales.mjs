@@ -172,7 +172,7 @@ async function run(theme) {
   await settle(900)
   check(t('saved → sale detail with toast'), /#\/sales\/[0-9a-f-]+$/.test(page.url()) && (await body()).includes('فاکتور فروش ۱ ثبت شد'))
   let text = await body()
-  check(t('detail shows customer, lines, received, cost, profit'), text.includes('آقای رضایی') && text.includes('مبلغ دریافتی') && text.includes('۵۱۸,۰۰۰') && text.includes('بهای تمام‌شده') && text.includes('سود این فاکتور'), text)
+  check(t('detail shows customer, lines, received, cost, profit'), text.includes('آقای رضایی') && text.includes('مبلغ فاکتور') && text.includes('۵۱۸,۰۰۰') && text.includes('بهای تمام‌شده') && text.includes('سود این فاکتور'), text)
   await shot('sale-detail')
 
   // موجودی کم شده
