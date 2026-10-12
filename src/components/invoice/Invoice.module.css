@@ -234,10 +234,11 @@
 
 .footer {
   position: sticky;
-  bottom: 0;
+  /* هم‌اندازه padding پایین .content تا نوار دقیقاً روی لبه پایین بچسبد (نه ۲۴px بالاتر) */
+  bottom: calc(-1 * var(--content-pad-bottom));
   margin-top: auto;
   margin-inline: -18px;
-  margin-bottom: -24px;
+  margin-bottom: calc(-1 * var(--content-pad-bottom));
   padding: 12px 18px calc(14px + var(--safe-bottom));
   background: var(--card);
   border-top: 1px solid var(--border);

@@ -33,3 +33,8 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
 - Routes: `/more/parties`. `/more/customers` and `/more/suppliers` are the same list, pre-filtered. Also `/parties/:id`, `/money`, `/money/new?kind=&party=&invoice=`, `/money/:id` and `/balances`.
 - E2E: `node scripts/e2e-money.mjs` with `npx vite preview --port 4173 --host 0.0.0.0`. Some scripts use 127.0.0.1, so bind all interfaces.
 - e2e-purchases section 12 was rewritten for the new parties UX: a row opens the ledger, and edit/delete is under the edit icon.
+
+## v1.1.1: insets, icon, intro
+- Insets: the window is edge-to-edge on all APIs (`MainActivity`). The CSS uses `--safe-top/--safe-bottom` = `var(--safe-area-inset-*, env(...))` exactly once (BottomNav, sheet, form footers, `.content` top). Sticky footers must offset `--content-pad-bottom`. Check with `node scripts/insets-check.mjs`.
+- To regenerate icons: `python3 scratch/make_icons.py` (writes the res/mipmap-* PNGs and the public/ icons).
+- Intro: in `index.html`. E2E: `scripts/e2e-intro.mjs`. Final-frame screenshot: `screenshots/intro-final.png`.

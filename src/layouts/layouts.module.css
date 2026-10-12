@@ -10,5 +10,5 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: calc(14px + var(--safe-top)) max(18px, calc((100% - 760px) / 2)) 24px;
+  padding: calc(14px + var(--safe-top)) max(18px, calc((100% - 760px) / 2)) var(--content-pad-bottom);
 }

@@ -16,6 +16,7 @@
   --radius: 16px;
   --radius-lg: 22px;
   --nav-height: 68px;
+  --content-pad-bottom: 24px;
   --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
   --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }

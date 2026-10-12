@@ -3,8 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0F0F14" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="theme-color" content="#0D122F" />
+    <link rel="icon" href="./favicon.ico" sizes="16x16 32x32 48x48 64x64" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="preload" as="image" href="./brand-icon.png" />
+    <style>
+      /* معرفی کوتاه هنگام باز شدن: نماد از چپ و نام از راست، در وسط به هم می‌رسند (حدود ۱٫۲ ثانیه) */
+      html.intro-on, html.intro-on body { background: #0d122f; }
+      #intro { position: fixed; inset: 0; z-index: 9999; background: #0d122f; display: flex; align-items: center; justify-content: center; pointer-events: none; transition: opacity 0.25s ease; }
+      #intro.done { opacity: 0; }
+      #intro .lockup { direction: ltr; display: flex; align-items: center; gap: clamp(14px, 4.5vw, 32px); }
+      #intro img { width: clamp(84px, 26vw, 150px); height: auto; filter: drop-shadow(0 10px 28px rgba(110, 70, 255, 0.35)); }
+      #intro .text { direction: rtl; text-align: right; font-family: 'Vazirmatn', system-ui, sans-serif; color: #fff; }
+      #intro .name { font-size: clamp(34px, 11vw, 64px); font-weight: 900; line-height: 1.15; letter-spacing: 0; }
+      #intro .sub { font-size: clamp(13px, 4vw, 22px); font-weight: 600; color: #b9a6ff; margin-top: 4px; }
+      #intro.run img { animation: intro-left 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+      #intro.run .text { animation: intro-right 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+      #intro:not(.run) img, #intro:not(.run) .text { opacity: 0; }
+      @keyframes intro-left { from { transform: translateX(-60vw); opacity: 0; } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
+      @keyframes intro-right { from { transform: translateX(60vw); opacity: 0; } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        #intro.run img, #intro.run .text { animation: none; opacity: 1; }
+        #intro { transition: none; }
+      }
+    </style>
     <title>انباردار</title>
     <script>
       // اعمال تم پیش از اولین رندر تا هنگام باز شدن برنامه چشمک نزند.
@@ -25,6 +48,44 @@
     </script>
   </head>
   <body>
+    <div id="intro" aria-hidden="true">
+      <div class="lockup">
+        <img src="./brand-icon.png" alt="" width="150" height="150" />
+        <div class="text">
+          <div class="name">انباردار</div>
+          <div class="sub">حسابداری و مدیریت انبار</div>
+        </div>
+      </div>
+    </div>
+    <script>
+      // تست خودکار (webdriver) معرفی را نمی‌بیند مگر با ?intro=1 در نشانی
+      (function () {
+        var el = document.getElementById('intro');
+        var force = /[?&]intro=1/.test(location.search);
+        var hold = /[?&]intro=hold/.test(location.search);
+        if ((navigator.webdriver && !force && !hold) || !el) { if (el) el.remove(); return; }
+        document.documentElement.classList.add('intro-on');
+        var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var finish = function () {
+          if (hold) return;
+          el.classList.add('done');
+          document.documentElement.classList.remove('intro-on');
+          setTimeout(function () { el.remove(); }, reduce ? 0 : 260);
+        };
+        var start = function () {
+          if (start.ran) return;
+          start.ran = true;
+          el.classList.add('run');
+          // ۰٫۸ ثانیه حرکت + ۰٫۲ مکث + ۰٫۲۵ محو ≈ ۱٫۲ ثانیه
+          setTimeout(finish, reduce ? 450 : 1000);
+        };
+        // منتظر فونت فارسی (حداکثر ۳۰۰ میلی‌ثانیه) تا متن با فونت درست وارد شود
+        if (document.fonts && document.fonts.load) {
+          document.fonts.load('900 40px Vazirmatn').then(start, start);
+          setTimeout(start, 300);
+        } else start();
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

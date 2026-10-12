@@ -56,9 +56,10 @@
 
 .footer {
   position: sticky;
-  bottom: 0;
+  bottom: calc(-1 * var(--content-pad-bottom));
   margin-top: auto;
   margin-inline: -18px;
+  margin-bottom: calc(-1 * var(--content-pad-bottom));
   padding: 12px 18px calc(12px + var(--safe-bottom));
   background: linear-gradient(to top, var(--bg) 70%, transparent);
 }

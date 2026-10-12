@@ -183,3 +183,14 @@ User explicitly confirmed: ADD «ثبت هزینه» (expense entry). Proceed wi
 - Cheque tracking deferred.
 - Home «فروش‌های اخیر» now lists real latest sales.
 - Tests: 2 new unit tests (112 total), e2e-money is 46 checks.
+
+## v1.1.1 additions (Oct 12, 2026, evening)
+- **System-bar inset fix (real phone, 3-button nav).** There was an empty band under the bottom nav and the sticky submit bar, and extra space at the top.
+  - Root cause 1: on Android ≤14 the window was not edge-to-edge. Capacitor 8 SystemBars (listener on decorView) padded natively or injected insets on top of the system's own fitting, so the insets doubled.
+  - Fix 1: `MainActivity` calls `EdgeToEdge.enable` with transparent bars and contrast enforcement off. Insets now apply exactly once: WebView ≥140 gets them through CSS vars/env(); older WebView gets native padding and zero vars.
+  - Root cause 2: the sticky form footers used `bottom: 0` inside a scroller with 24px bottom padding, so they stuck 24px above the edge.
+  - Fix 2: `bottom: calc(-1 * var(--content-pad-bottom))`.
+  - Test: `scripts/insets-check.mjs` simulates edge-to-edge 3-button, edge-to-edge gesture and old-WebView padded modes.
+  - Emulator verification was NOT possible: no KVM on the box, and no Android SDK or emulator on the user's PC.
+- **App icon:** cropped from `anbardar-assets/icon-source.jpg`. Built legacy, round and adaptive icons (glyph foreground inside the 66dp safe zone, purple gradient background, monochrome) for every density, plus favicon.ico, 192/512 web icons and an apple-touch icon. Generator: `scratch/make_icons.py` (not committed; scratch is excluded).
+- **Intro:** an inline animated lockup in index.html (icon from the left, name and subtitle from the right, ≈1.2s, navy #0D122F). It honors prefers-reduced-motion and is skipped under webdriver unless `?intro=1` / `?intro=hold`. The native splash is plain navy (no icon), and the WebView backgroundColor is navy, so there is no white flash. Test: `scripts/e2e-intro.mjs`.

@@ -18,7 +18,12 @@
     </style>
 
 
+    <!-- اسپلش بومی: فقط پس‌زمینه تیره (هم‌رنگ معرفی وب) تا چشمک سفید دیده نشود؛ معرفی متحرک در وب اجرا می‌شود -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_blank</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:background">@color/splash_background</item>
     </style>
 </resources>
