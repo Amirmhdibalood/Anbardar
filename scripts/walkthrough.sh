@@ -3,7 +3,7 @@
 # نیاز: npx vite preview --port 4173 --host 0.0.0.0
 cd "$(dirname "$0")/.."
 SUITES="intro polish products purchases sales money returns stock reports backup picker"
-CONFIGS=("360x780 3btn closed" "360x780 gesture open" "412x915 3btn open" "412x915 gesture closed")
+CONFIGS=(${CONFIGS_OVERRIDE:-"360x780 3btn closed" "360x780 gesture open" "412x915 3btn open" "412x915 gesture closed"})
 mkdir -p /tmp/walk
 for c in "${CONFIGS[@]}"; do
   set -- $c

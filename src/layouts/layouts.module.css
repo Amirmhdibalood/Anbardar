@@ -12,7 +12,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   /* فیلد/دکمه‌ای که با فوکوس یا اسکرول به دید می‌آید زیر نوار ثابت پایین (ثبت/جمع) پنهان نماند */
-  scroll-padding-top: calc(16px + var(--safe-top));
+  scroll-padding-top: calc(76px + var(--safe-top)); /* زیر سربرگ چسبان */
   scroll-padding-bottom: 180px;
   padding: calc(14px + var(--safe-top)) max(18px, calc((100% - 760px) / 2)) var(--content-pad-bottom);
 }

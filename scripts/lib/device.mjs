@@ -29,6 +29,12 @@ export function installFakeKeyboard(initialKb) {
 }
 
 export async function setupDevice(page) {
+  // مثل انگشت کاربر: اول عنصر را وسط صفحه بیاور (نه زیر سربرگ/نوار ثبت چسبان)، بعد بزن
+  const click = page.click.bind(page)
+  page.click = async (sel, opts) => {
+    await page.$eval(sel, (e) => e.scrollIntoView({ block: 'center' })).catch(() => {})
+    return click(sel, opts)
+  }
   await page.setViewport({ width: device.w, height: device.h, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
   await page.evaluateOnNewDocument(installFakeKeyboard, device.kb)
   if (device.top || device.bottom)
