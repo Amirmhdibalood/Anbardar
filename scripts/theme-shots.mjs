@@ -2,7 +2,7 @@
 import puppeteer from 'puppeteer-core'
 const BASE = process.env.BASE_URL ?? 'http://localhost:4173/'
 const OUT = '/workspace/anbardar-out/screens/'
-const themes = [['purple', 'dark', ''], ['teal', 'dark', 'teal'], ['emerald', 'dark', 'emerald'], ['gold', 'dark', 'gold'], ['crimson', 'dark', 'crimson'], ['light', 'light', '']]
+const themes = [['purple', 'dark', ''], ['teal', 'dark', 'teal'], ['emerald', 'dark', 'emerald'], ['gold', 'dark', 'gold'], ['crimson', 'dark', 'crimson'], ['light', 'light', ''], ['light-purple', 'light', ''], ['light-teal', 'light', 'teal'], ['light-emerald', 'light', 'emerald'], ['light-gold', 'light', 'gold'], ['light-crimson', 'light', 'crimson']]
 const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: true, args: ['--no-sandbox'] })
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 for (const [name, mode, accent] of themes) {

@@ -64,3 +64,21 @@
   --bg: #120b0d; --card: #1c1215; --card-hover: #26181c; --border: #37232a;
   --accent: #e11d48; --accent-contrast: #ffffff; --accent-soft: rgba(225, 29, 72, 0.16); --accent-text: #fda4b8;
 }
+
+/* روشن با رنگ‌های تأکیدی (پیش‌نمایش) */
+:root[data-theme='light'][data-accent='teal'] {
+  --bg: #f3f8f8; --card-hover: #e9f3f2; --border: #dbe8e7;
+  --accent: #0d9488; --accent-soft: rgba(13, 148, 136, 0.12); --accent-text: #0f766e;
+}
+:root[data-theme='light'][data-accent='emerald'] {
+  --bg: #f3f8f5; --card-hover: #e8f4ec; --border: #dae9df;
+  --accent: #059669; --accent-soft: rgba(5, 150, 105, 0.12); --accent-text: #047857;
+}
+:root[data-theme='light'][data-accent='gold'] {
+  --bg: #faf7f0; --card-hover: #f6efdf; --border: #ece3cf;
+  --accent: #d97706; --accent-soft: rgba(217, 119, 6, 0.12); --accent-text: #b45309;
+}
+:root[data-theme='light'][data-accent='crimson'] {
+  --bg: #fbf4f5; --card-hover: #f7e9ec; --border: #eedadf;
+  --accent: #e11d48; --accent-soft: rgba(225, 29, 72, 0.1); --accent-text: #be123c;
+}
