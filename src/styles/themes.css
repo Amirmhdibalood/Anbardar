@@ -43,3 +43,24 @@
   --overlay: rgba(23, 23, 31, 0.45);
   --shadow: 0 10px 30px rgba(40, 30, 80, 0.14);
 }
+
+/*
+ * رنگ‌های تأکیدی (پیش‌نمایش؛ هنوز انتخاب‌گر/قفل ندارد): <html data-accent="...">
+ * فقط توکن‌ها عوض می‌شوند؛ پیش‌فرض بنفش. تم‌های پولی بعداً (مرحله ۶، Myket) قفل می‌شوند.
+ */
+:root[data-theme='dark'][data-accent='teal'] {
+  --bg: #0b1114; --card: #121b20; --card-hover: #18242a; --border: #22323a;
+  --accent: #14b8a6; --accent-contrast: #04211e; --accent-soft: rgba(20, 184, 166, 0.16); --accent-text: #7ee7da;
+}
+:root[data-theme='dark'][data-accent='emerald'] {
+  --bg: #0b110e; --card: #121b16; --card-hover: #18241d; --border: #223329;
+  --accent: #10b981; --accent-contrast: #032116; --accent-soft: rgba(16, 185, 129, 0.16); --accent-text: #86efc4;
+}
+:root[data-theme='dark'][data-accent='gold'] {
+  --bg: #12100b; --card: #1c1912; --card-hover: #252118; --border: #352f22;
+  --accent: #f59e0b; --accent-contrast: #261800; --accent-soft: rgba(245, 158, 11, 0.16); --accent-text: #fcd38a;
+}
+:root[data-theme='dark'][data-accent='crimson'] {
+  --bg: #120b0d; --card: #1c1215; --card-hover: #26181c; --border: #37232a;
+  --accent: #e11d48; --accent-contrast: #ffffff; --accent-soft: rgba(225, 29, 72, 0.16); --accent-text: #fda4b8;
+}

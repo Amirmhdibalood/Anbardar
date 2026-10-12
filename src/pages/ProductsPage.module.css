@@ -195,7 +195,7 @@
   place-items: center;
   background: var(--accent);
   color: var(--accent-contrast);
-  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 40%, transparent);
   transition: transform 0.12s;
 }
 

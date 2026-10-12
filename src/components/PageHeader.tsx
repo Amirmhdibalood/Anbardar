@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { BACK_BUTTON_SIDE } from '../config/ui'
 import { Icon } from './Icon'
@@ -19,6 +19,17 @@ interface Props {
  */
 export function PageHeader({ title, backTo, onBack, actions }: Props) {
   const left = BACK_BUTTON_SIDE === 'left'
+  const ref = useRef<HTMLElement>(null)
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    let el = ref.current?.parentElement ?? null
+    while (el && !/(auto|scroll)/.test(getComputedStyle(el).overflowY)) el = el.parentElement
+    const target: HTMLElement | Window = el ?? window
+    const read = () => setScrolled((el ? el.scrollTop : window.scrollY) > 4)
+    read()
+    target.addEventListener('scroll', read, { passive: true })
+    return () => target.removeEventListener('scroll', read)
+  }, [])
   const icon = <Icon name={left ? 'chevronLeft' : 'arrowRight'} size={left ? 20 : 18} />
   const back = onBack ? (
     <button type="button" onClick={onBack} className={styles.back} aria-label="بازگشت" data-back-button>
@@ -31,7 +42,7 @@ export function PageHeader({ title, backTo, onBack, actions }: Props) {
   ) : null
 
   return (
-    <header className={styles.root}>
+    <header ref={ref} className={styles.root} data-scrolled={scrolled}>
       {!left && back}
       <h1 className={styles.title}>{title}</h1>
       {actions && <div className={styles.actions}>{actions}</div>}
