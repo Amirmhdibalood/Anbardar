@@ -42,3 +42,9 @@
 6. **Migration 006**: پیش از اجرا Snapshot کامل (runner). همه‌ی ردیف‌های payments قدیمی (نسخه ۱ همه نقدی بود) به اسناد خودکار
    تبدیل شدند (برای فاکتورهای ابطال‌شده، سند ابطال‌شده)؛ برای برگشت‌های قدیمی استرداد خودکار ساخته شد. پس مانده همه طرف‌ها بعد از ارتقا صفر است.
 7. Backup/Restore عمومی است (همه جدول‌ها)؛ اعتبارسنجی فایل برای نسخه ≥ ۶ جدول‌های parties/money_documents/settlements را لازم دارد.
+
+## User decisions (v1.1.1, Oct 12, 2026)
+- **Allocation:** the receipt/payment form still asks which open invoices the amount is for. If the user allocates nothing, `moneyService.create` applies "oldest invoice first" when saving; anything left over stays as on-account credit. Manual allocations are never changed.
+- **Settle balance:** the ledger has a «پس دادن طلب او» button when the balance is a credit (we owe them, or they overpaid). It records a cash payment for the full credit. It also has «دریافت مانده» when they owe us but have no open sales invoices (e.g. we overpaid a supplier), which records a cash receipt. The action is `moneyService.settleBalance`, which recomputes the balance at save time and is idempotent by requestId. The resulting document also goes through auto-allocation.
+- **Cheques:** tracking is deferred. A cheque is only a payment method for now.
+- **Home:** «فروش‌های اخیر» shows the latest 5 sales invoices with their payment/cancel status.

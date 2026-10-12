@@ -176,3 +176,10 @@ User explicitly confirmed: ADD «ثبت هزینه» (expense entry). Proceed wi
 - Cash stays the default on invoices. «نسیه / بخشی» records a paid amount less than the total (named parties only).
 - Balance comes only from documents. New screens: unified parties list, party ledger, money form (manual allocation with an oldest-first suggestion), money list/detail with cancel, debtors/creditors report, and a home card.
 - Design note: docs/parties-and-money.md. E2E: scripts/e2e-money.mjs (both themes).
+
+## v1.1.1 (Oct 12, 2026): user answers to stage 1 questions
+- Unallocated receipts/payments are auto-applied oldest-invoice-first on save.
+- New settle-balance button on the party ledger: pays back a credit balance, or collects an invoice-less debit.
+- Cheque tracking deferred.
+- Home «فروش‌های اخیر» now lists real latest sales.
+- Tests: 2 new unit tests (112 total), e2e-money is 46 checks.

@@ -167,7 +167,7 @@ export default function MoneyFormPage() {
                 <span className={styles.meta}>فاکتور بازی ندارد. کل مبلغ به حساب او (علی‌الحساب) ثبت می‌شود.</span>
               ) : (
                 <>
-                  <span className={styles.meta}>هر مقدار را که تخصیص ندهید علی‌الحساب می‌ماند و از مانده کل حساب کم می‌شود.</span>
+                  <span className={styles.meta}>فاکتورهایی را که این مبلغ بابت آن‌هاست انتخاب کنید. اگر چیزی وارد نکنید، هنگام ثبت خودکار از قدیمی‌ترین فاکتور تسویه می‌شود؛ مازاد علی‌الحساب می‌ماند.</span>
                   <Button type="button" variant="secondary" disabled={!total} onClick={suggest}>
                     پیشنهاد: قدیمی‌ترین اول
                   </Button>
@@ -187,8 +187,8 @@ export default function MoneyFormPage() {
                     </div>
                   ))}
                   <div className={styles.allocFoot}>
-                    <span>تخصیص‌یافته: {formatMoney(allocSum)}</span>
-                    <span>علی‌الحساب: {formatMoney(Math.max(0, (total ?? 0) - allocSum))}</span>
+                    <span data-testid="alloc-mode">{allocSum === 0 ? 'تخصیص: خودکار (قدیمی‌ترین اول)' : `تخصیص‌یافته: ${formatMoney(allocSum)}`}</span>
+                    {allocSum > 0 && <span>علی‌الحساب: {formatMoney(Math.max(0, (total ?? 0) - allocSum))}</span>}
                   </div>
                 </>
               )}

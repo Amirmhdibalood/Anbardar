@@ -214,6 +214,45 @@ async function run(theme) {
   await shot('home')
   await go('#/more')
   await shot('more')
+
+  // صفحه خانه: آخرین فاکتورهای فروش واقعی
+  await go('#/')
+  const recent = await page.$$eval('[data-testid="recent-sales"] li', (els) => els.map((e) => e.innerText.replace(/\s+/g, ' ')))
+  check(t('home recent sales lists real invoices newest first'), recent.length === 2 && recent[0].includes('فاکتور ۲') && recent[0].includes(who) && recent[0].includes('پرداخت‌نشده'), JSON.stringify(recent))
+  await shot('home-recent')
+
+  // دریافت بدون تخصیص ← خودکار قدیمی‌ترین اول
+  await page.goto(ledgerUrl, { waitUntil: 'networkidle0' })
+  await settle()
+  await clickText('دریافت از او')
+  await settle(500)
+  await fill('#money-amount', '50000')
+  await settle(200)
+  check(t('form explains automatic allocation'), (await page.$eval('[data-testid="alloc-mode"]', (e) => e.textContent)).includes('خودکار'))
+  await clickText('ثبت دریافت')
+  await waitText('تسویه فاکتورها')
+  await settle(400)
+  check(t('unallocated receipt auto-applied to oldest open invoice'), (await page.$eval('[data-testid="money-allocations"]', (e) => e.innerText).catch(() => '')).includes('فاکتور فروش ۲'))
+  await shot('receipt-auto-allocated')
+
+  // اضافه دریافت ← بستانکار ← دکمه پس دادن طلب
+  await page.goto(ledgerUrl, { waitUntil: 'networkidle0' })
+  await settle()
+  await clickText('دریافت از او')
+  await settle(500)
+  await fill('#money-amount', '130000')
+  await clickText('ثبت دریافت')
+  await waitText('تسویه فاکتورها')
+  await page.goto(ledgerUrl, { waitUntil: 'networkidle0' })
+  await settle()
+  const settleBtn = await page.$eval('[data-testid="settle-balance"]', (e) => e.textContent).catch(() => '')
+  check(t('credit balance offers refund button'), settleBtn.includes('پس دادن طلب او') && settleBtn.includes('۳۰,۰۰۰'), settleBtn)
+  await page.click('[data-testid="settle-balance"]')
+  await settle(300)
+  await shot('settle-confirm')
+  await dialogClick('بله، ثبت شود')
+  check(t('refund recorded, balance settled'), (await waitText('حساب تسویه شد')) && (await page.$eval('[data-testid="party-balance"]', (e) => e.innerText)).includes('تسویه') && !(await page.$('[data-testid="settle-balance"]')))
+  await shot('ledger-settled')
   void sheetText
 
   await context.close()

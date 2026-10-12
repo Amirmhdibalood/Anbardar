@@ -1,5 +1,6 @@
 import { useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { Badge } from '../components/Badge'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
@@ -7,17 +8,22 @@ import { Section } from '../components/Section'
 import { useAsync } from '../hooks/useAsync'
 import { useDashboard } from '../hooks/useDashboard'
 import { useMoney } from '../hooks/useMoney'
+import { PAYMENT_STATUS_LABELS } from '../models/money'
+import { getSales } from '../services/appContext'
 import { getBackupInfo } from '../services/backupService'
-import { MONEY_UNIT } from '../utils/money'
-import { formatPersianDate } from '../utils/date'
-import { formatInteger } from '../utils/persian'
+import { MONEY_UNIT, formatMoney } from '../utils/money'
+import { formatPersianDate, formatPersianDateTime } from '../utils/date'
+import { formatInteger, toPersianDigits } from '../utils/persian'
 import styles from './HomePage.module.css'
+import list from './money/Money.module.css'
 
 export default function HomePage() {
   const summary = useDashboard()
   const money = useMoney()
   const loadBackup = useCallback(() => getBackupInfo(), [])
   const { data: backup } = useAsync(loadBackup)
+  const loadRecent = useCallback(() => getSales().list({ limit: 5 }), [])
+  const { data: recent } = useAsync(loadRecent)
 
   return (
     <>
@@ -78,7 +84,31 @@ export default function HomePage() {
 
       <Section title="فروش‌های اخیر">
         <Card>
-          <EmptyState compact icon="file" title="هنوز فروشی ثبت نشده" description="با اولین فروش، فهرست آخرین فاکتورها اینجا نمایش داده می‌شود." />
+          {recent && recent.length > 0 ? (
+            <ul className={list.list} data-testid="recent-sales">
+              {recent.map(({ invoice, customerName, payment }) => (
+                <li key={invoice.id}>
+                  <Link to={`/sales/${invoice.id}`} className={list.row}>
+                    <span className={list.rowMain}>
+                      <strong>
+                        فاکتور {toPersianDigits(invoice.invoiceNumber)} | {customerName}
+                      </strong>
+                      <span className={list.meta}>{formatPersianDateTime(invoice.invoiceDate)}</span>
+                    </span>
+                    {invoice.status === 'cancelled' ? <Badge tone="error">ابطال‌شده</Badge> : payment && payment !== 'paid' ? <Badge tone="warning">{PAYMENT_STATUS_LABELS[payment]}</Badge> : null}
+                    <span className={invoice.status === 'cancelled' ? list.struck : undefined}>{formatMoney(invoice.totalAmount)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : recent ? (
+            <EmptyState compact icon="file" title="هنوز فروشی ثبت نشده" description="با اولین فروش، فهرست آخرین فاکتورها اینجا نمایش داده می‌شود." />
+          ) : null}
+          {recent && recent.length > 0 && (
+            <Link to="/sales" className={list.row} style={{ justifyContent: 'center', borderTop: '1px solid var(--border)' }}>
+              همه فروش‌ها
+            </Link>
+          )}
         </Card>
       </Section>
     </>

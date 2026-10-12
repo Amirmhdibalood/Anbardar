@@ -44,13 +44,15 @@ export default function PartyLedgerPage() {
   const load = useCallback(async () => {
     const party = await getCatalog().parties.getById(id)
     if (!party) return null
-    const [ledger, balance] = await Promise.all([getMoney().ledger(id), getMoney().balanceOf(id)])
-    return { party, ledger, balance }
+    const [ledger, balance, plan] = await Promise.all([getMoney().ledger(id), getMoney().balanceOf(id), getMoney().settlePlan(id)])
+    return { party, ledger, balance, plan }
   }, [id])
   const { data, error, loading, reload } = useAsync(load)
   const [editing, setEditing] = useState(false)
   const [opening, setOpening] = useState(false)
   const [confirm, setConfirm] = useState<'deactivate' | 'delete' | null>(null)
+  const [settling, setSettling] = useState(false)
+  const [settleRequest, setSettleRequest] = useState(newId)
 
   if (error && data === undefined) {
     return (
@@ -70,7 +72,7 @@ export default function PartyLedgerPage() {
     )
   }
 
-  const { party, ledger, balance } = data
+  const { party, ledger, balance, plan } = data
   const rows = [...ledger].reverse()
 
   return (
@@ -107,6 +109,11 @@ export default function PartyLedgerPage() {
           <Button variant="secondary" icon="plus" onClick={() => setOpening(true)}>
             مانده اول دوره
           </Button>
+          {plan && party.isActive && (
+            <Button variant="secondary" icon="check" onClick={() => setSettling(true)} data-testid="settle-balance">
+              {plan.kind === 'payment' ? `پس دادن طلب او (${formatMoney(plan.amount)})` : `دریافت مانده (${formatMoney(plan.amount)})`}
+            </Button>
+          )}
         </div>
       )}
 
@@ -205,6 +212,27 @@ export default function PartyLedgerPage() {
           reload()
         }}
         onCancel={() => setConfirm(null)}
+      />
+      <ConfirmSheet
+        open={settling && !!plan}
+        tone="warning"
+        title={plan?.kind === 'payment' ? 'تسویه بستانکاری' : 'دریافت مانده'}
+        message={
+          plan
+            ? plan.kind === 'payment'
+              ? `یک سند پرداخت نقدی ${formatMoney(plan.amount, { withUnit: true })} به «${party.name}» ثبت می‌شود و حساب صاف می‌شود.`
+              : `یک سند دریافت نقدی ${formatMoney(plan.amount, { withUnit: true })} از «${party.name}» ثبت می‌شود و حساب صاف می‌شود.`
+            : ''
+        }
+        confirmLabel="بله، ثبت شود"
+        onConfirm={async () => {
+          await getMoney().settleBalance(party.id, { requestId: settleRequest })
+          setSettling(false)
+          setSettleRequest(newId())
+          toast.show('حساب تسویه شد.')
+          reload()
+        }}
+        onCancel={() => setSettling(false)}
       />
       {opening && (
         <OpeningSheet

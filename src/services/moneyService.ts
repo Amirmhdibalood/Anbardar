@@ -115,9 +115,12 @@ export function createMoneyService(db: SqlExecutor) {
         if (!party || !party.isActive) throw new ValidationError({ partyId: 'طرف حساب انتخاب‌شده پیدا نشد یا غیرفعال است.' })
         if (party.isSystem) throw new ValidationError({ partyId: `برای «${party.name}» حساب جدا نگه داشته نمی‌شود؛ یک طرف حساب با نام ثبت کنید.` })
 
-        const allocations = (input.allocations ?? []).filter((a) => a.amount !== 0)
         const invoiceKind = invoiceKindFor(kind)
-        const open = new Map((await r.money.openInvoices(invoiceKind, party.id)).map((o) => [o.id, o]))
+        const openList = await r.money.openInvoices(invoiceKind, party.id)
+        const open = new Map(openList.map((o) => [o.id, o]))
+        // تصمیم کاربر: اگر چیزی دستی تخصیص داده نشد، هنگام ثبت «قدیمی‌ترین فاکتور اول» خودکار اعمال می‌شود
+        const manual = (input.allocations ?? []).filter((a) => a.amount !== 0)
+        const allocations = manual.length ? manual : suggestOldestFirst(openList, amount)
         const errors: Record<string, string> = {}
         let sum = 0
         const seen = new Set<string>()
@@ -138,6 +141,29 @@ export function createMoneyService(db: SqlExecutor) {
         for (const a of allocations) await r.money.insertSettlement(doc.id, invoiceKind, a.invoiceId, a.amount)
         return doc
       })
+    },
+
+    /**
+     * سند تسویه مانده: بستانکار (ما به او بدهکاریم / اضافه پرداخت کرده) ← پرداخت به او؛
+     * بدهکاری که فاکتور فروش باز ندارد (مثلاً اضافه پرداخت ما به تأمین‌کننده) ← دریافت از او.
+     */
+    async settleBalance(partyId: string, opts: { requestId?: string; method?: MoneyMethod; note?: string | null } = {}): Promise<MoneyDocument> {
+      if (opts.requestId) {
+        const existing = await createRepositories(db).money.getByRequestId(opts.requestId)
+        if (existing) return existing
+      }
+      const plan = await this.settlePlan(partyId)
+      if (!plan) throw new AppError('validation', 'این حساب مانده‌ای برای تسویه ندارد.')
+      return this.create({ kind: plan.kind, partyId, amount: plan.amount, method: opts.method, note: opts.note ?? 'تسویه مانده حساب', requestId: opts.requestId })
+    },
+
+    /** آیا دکمه تسویه مانده معنا دارد؟ (null = نه) */
+    async settlePlan(partyId: string): Promise<{ kind: 'receipt' | 'payment'; amount: Money } | null> {
+      const r = createRepositories(db)
+      const balance = await r.money.balanceOf(partyId)
+      if (balance < 0) return { kind: 'payment', amount: -balance }
+      if (balance > 0 && (await r.money.openInvoices('sales', partyId)).length === 0) return { kind: 'receipt', amount: balance }
+      return null
     },
 
     /** مانده اول دوره به‌صورت یک سند واقعی (قابل ابطال، بدون ویرایش) */
