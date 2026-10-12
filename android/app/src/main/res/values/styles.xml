@@ -13,6 +13,8 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
+        <!-- رنگ پس‌زمینه پنجره هم‌رنگ برنامه، تا ناحیه نوار وضعیت/ناوبری خالی و سفید/سیاه دیده نشود -->
+        <item name="android:windowBackground">@color/app_background</item>
     </style>
 
 

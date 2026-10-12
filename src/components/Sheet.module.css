@@ -17,6 +17,7 @@
   box-shadow: var(--shadow);
   animation: rise 0.22s ease-out;
   max-height: 92vh;
+  max-height: calc(92dvh - var(--safe-top));
   overflow-y: auto;
   max-width: 640px;
   margin: 0 auto;
