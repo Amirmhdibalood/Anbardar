@@ -3,26 +3,31 @@ package ir.anbardar.app;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
-import androidx.activity.EdgeToEdge;
-import androidx.activity.SystemBarStyle;
+import android.view.Window;
+import androidx.core.view.WindowCompat;
 import com.getcapacitor.BridgeActivity;
 
 /**
- * پنجره روی همه نسخه‌های اندروید لبه‌به‌لبه (edge-to-edge) کشیده می‌شود تا فاصله نوارهای سیستم فقط یک بار اعمال شود:
- * افزونه SystemBars کپسیتور (insetsHandling = css) یا با WebView جدید مقدار را به CSS می‌دهد، یا با WebView قدیمی
- * خودش padding بومی می‌گذارد و متغیرهای CSS را صفر می‌کند. بدون این خط، روی اندروید ۱۴ و قدیمی‌تر سیستم هم
- * محتوا را از زیر نوارها کنار می‌کشید و فاصله دو برابر می‌شد (نوار خالی زیر منوی پایین و بالای صفحه).
+ * پنجره روی همه نسخه‌های اندروید لبه‌به‌لبه (edge-to-edge) است تا فاصله نوارهای سیستم و صفحه‌کلید فقط یک بار
+ * اعمال شود: افزونه SystemBars کپسیتور (insetsHandling = css) با WebView جدید مقدار را به CSS می‌دهد و با WebView
+ * قدیمی خودش padding بومی می‌گذارد (برای صفحه‌کلید هم همین‌طور).
+ *
+ * مهم: این کار عمداً بعد از super.onCreate انجام می‌شود. BridgeActivity در super تم AppTheme.NoActionBar را
+ * می‌گذارد؛ اگر decor قبل از آن ساخته شود (مثلاً با EdgeToEdge.enable پیش از super) پنجره با تم اسپلش ساخته
+ * می‌شد و یک نوار عنوان بومی «انباردار» (ActionBar) ظاهر می‌شد که فاصله صفحه‌کلید را هم دوباره حساب می‌کرد.
  */
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // قبل از super تا سبک آیکون‌های نوار (روشن/تیره) که SystemBars بعداً تنظیم می‌کند حفظ شود
-        EdgeToEdge.enable(this, SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT));
         super.onCreate(savedInstanceState);
+        Window window = getWindow();
+        WindowCompat.setDecorFitsSystemWindows(window, false);
+        window.setStatusBarColor(Color.TRANSPARENT);
+        window.setNavigationBarColor(Color.TRANSPARENT);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // بدون پرده نیمه‌شفاف روی ناوبری سه‌دکمه‌ای؛ رنگ منوی پایین برنامه تا لبه ادامه پیدا می‌کند
-            getWindow().setNavigationBarContrastEnforced(false);
-            getWindow().setStatusBarContrastEnforced(false);
+            window.setNavigationBarContrastEnforced(false);
+            window.setStatusBarContrastEnforced(false);
         }
     }
 }

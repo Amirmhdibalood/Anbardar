@@ -1,6 +1,8 @@
 // تست End-to-End فاز ۵ (خرید، تأمین‌کنندگان، تقویم شمسی) در Chrome بدون رابط روی نسخه build
 // اجرا: npm run build && (npx vite preview --port 4173 &) && node scripts/e2e-purchases.mjs
 import puppeteer from 'puppeteer-core'
+import { setupDevice } from './lib/device.mjs'
+import { pick, pickAdd, pickedText, pickerOptions } from './lib/picker.mjs'
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4173/'
 const OUT = new URL('../screenshots/', import.meta.url).pathname
@@ -13,7 +15,7 @@ const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH
 async function run(theme) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  await setupDevice(page)
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && problems.push(`[${theme}] console.${m.type()}: ${m.text()}`))
   page.on('pageerror', (e) => problems.push(`[${theme}] pageerror: ${e.message}`))
   page.on('requestfailed', (r) => problems.push(`[${theme}] requestfailed: ${r.url()}`))
@@ -33,6 +35,7 @@ async function run(theme) {
   const clickText = async (text, tag = 'button') => {
     const [el] = await page.$$(`xpath/.//${tag}[contains(normalize-space(.), "${text}")] | .//a[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
@@ -48,12 +51,7 @@ async function run(theme) {
     for (let i = 0; i < 40 && (await page.$eval(sel, (e) => e.value)) !== ''; i++) await page.keyboard.press('Backspace')
     if (text) await page.type(sel, text)
   }
-  const selectByText = async (sel, text) => {
-    const value = await page.$eval(sel, (s, tx) => [...s.options].find((o) => o.textContent.trim() === tx)?.value, text)
-    if (!value) throw new Error('option not found: ' + text)
-    await page.select(sel, value)
-    await settle(150)
-  }
+  const selectByText = (sel, text) => (text.startsWith('＋') ? pickAdd(page, sel) : pick(page, sel, text))
   const waitText = async (text, ms = 4000) => {
     const end = Date.now() + ms
     while (Date.now() < end) {
@@ -83,6 +81,7 @@ async function run(theme) {
   const openCard = async (name) => {
     const [el] = await page.$$(`xpath/.//button[contains(@aria-label, "موجودی ${name}")]`)
     if (!el) throw new Error('card not found: ' + name)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle(450)
   }
@@ -93,6 +92,7 @@ async function run(theme) {
   const dialogClick = async (text) => {
     const [el] = await page.$$(`xpath/.//*[@role="dialog"]//button[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('dialog button not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
@@ -121,8 +121,8 @@ async function run(theme) {
   await page.click('a[aria-label="ثبت خرید"]')
   await settle(500)
   check(t('form opened at /purchases/new'), page.url().endsWith('#/purchases/new'))
-  const partyText = await page.$eval('#inv-party', (s) => s.options[s.selectedIndex].text)
-  const whText = await page.$eval('#inv-warehouse', (s) => s.options[s.selectedIndex].text)
+  const partyText = await pickedText(page, '#inv-party')
+  const whText = await pickedText(page, '#inv-warehouse')
   check(t('defaults: supplier «متفرقه», default warehouse'), partyText === 'متفرقه' && whText === 'انبار مرکزی', partyText + whText)
   const today = new Intl.DateTimeFormat('fa-IR-u-ca-persian', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
   check(t('date defaults to today (Jalali)'), (await page.$eval('#inv-date', (e) => e.innerText)).replace(/\s+/g, ' ').trim() === today, today)
@@ -166,13 +166,15 @@ async function run(theme) {
   await shot('purchase-new-supplier')
   await dialogClick('افزودن تأمین‌کننده')
   await settle(400)
-  check(t('inline supplier created and selected'), (await page.$eval('#inv-party', (s) => s.options[s.selectedIndex].text)) === 'پخش البرز')
+  check(t('inline supplier created and selected'), (await pickedText(page, '#inv-party')) === 'پخش البرز')
   // تاریخ: آینده ← هشدار؛ سپس عقب‌تاریخ
+  await page.$eval('#inv-date', (e) => e.scrollIntoView({ block: 'center' }))
   await page.click('#inv-date')
   await settle(300)
   await page.click('[role=dialog] button[aria-label="ماه بعد"]')
   await dialogClick('۱۰')
   check(t('future date warns'), (await body()).includes('تاریخ انتخاب‌شده بعد از امروز است'))
+  await page.$eval('#inv-date', (e) => e.scrollIntoView({ block: 'center' }))
   await page.click('#inv-date')
   await settle(300)
   await shot('purchase-date-picker')

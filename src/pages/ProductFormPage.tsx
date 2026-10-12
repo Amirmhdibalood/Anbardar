@@ -5,13 +5,15 @@ import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { EmptyState } from '../components/EmptyState'
-import { Field, QuantityInput, MoneyInput, SelectInput, Switch, TextArea, TextInput } from '../components/Field'
+import { Field, QuantityInput, MoneyInput, Switch, TextArea, TextInput } from '../components/Field'
 import { Icon } from '../components/Icon'
 import { PageHeader } from '../components/PageHeader'
+import { Picker } from '../components/Picker'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
 import { useGoBack } from '../hooks/useGoBack'
+import { useLeaveConfirm } from '../hooks/useLeaveConfirm'
 import type { Product, ProductGroup, Unit } from '../models/catalog'
 import { DEFAULT_UNIT_ID } from '../models/units'
 import { getApp, getCatalog } from '../services/appContext'
@@ -21,7 +23,6 @@ import { AppError, ValidationError, toUserMessage } from '../utils/errors'
 import { logger } from '../utils/logger'
 import styles from './ProductFormPage.module.css'
 
-const NEW_UNIT = '__new__'
 
 interface Loaded {
   product: Product | null
@@ -69,16 +70,21 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
   const navigate = useNavigate()
   const toast = useToast()
 
-  const activeGroups = groups.filter((g) => g.isActive || g.id === product?.groupId)
+  const [localGroups, setLocalGroups] = useState(groups)
+  const [groupSheet, setGroupSheet] = useState<string | null>(null)
+  const activeGroups = localGroups.filter((g) => g.isActive || g.id === product?.groupId)
   const initialGroup = product?.groupId ?? (activeGroups.find((g) => g.id === data.defaultGroupId)?.id ?? activeGroups[0]?.id ?? '')
   const [values, setValues] = useState<ProductFormValues>(() =>
     product ? productToForm(product) : emptyProductForm({ groupId: initialGroup, unitId: DEFAULT_UNIT_ID }),
   )
+  const [initialValues] = useState(values)
+  const dirty = JSON.stringify(values) !== JSON.stringify(initialValues)
+  const leave = useLeaveConfirm(dirty, goBack)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [banner, setBanner] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [localUnits, setLocalUnits] = useState<Unit[]>(units)
-  const [unitSheet, setUnitSheet] = useState(false)
+  const [unitSheet, setUnitSheet] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<'deactivate' | 'delete' | null>(null)
 
   const unit = localUnits.find((u) => u.id === values.unitId)
@@ -143,11 +149,6 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
     navigate('/products', { replace: true })
   }
 
-  const onUnitChange = (value: string) => {
-    if (value === NEW_UNIT) setUnitSheet(true)
-    else set('unitId', value)
-  }
-
   const noGroups = activeGroups.length === 0
 
   return (
@@ -159,7 +160,7 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
         void save()
       }}
     >
-      <PageHeader title={editing ? 'ویرایش کالا' : 'کالای جدید'} onBack={goBack} actions={product && !product.isActive ? <Badge>غیرفعال</Badge> : undefined} />
+      <PageHeader title={editing ? 'ویرایش کالا' : 'کالای جدید'} onBack={leave.back} actions={product && !product.isActive ? <Badge>غیرفعال</Badge> : undefined} />
 
       {banner && (
         <div className={styles.banner} role="alert">
@@ -174,15 +175,17 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
         </Field>
 
         <Field label="گروه کالا" required htmlFor="f-groupId" error={errors['groupId']}>
-          <SelectInput id="f-groupId" value={values.groupId} onChange={(e) => set('groupId', e.target.value)} invalid={!!errors['groupId']}>
-            {values.groupId === '' && <option value="">انتخاب کنید…</option>}
-            {activeGroups.map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.name}
-                {g.isActive ? '' : ' (غیرفعال)'}
-              </option>
-            ))}
-          </SelectInput>
+          <Picker
+            id="f-groupId"
+            title="گروه کالا"
+            value={values.groupId}
+            onChange={(v) => set('groupId', v)}
+            invalid={!!errors['groupId']}
+            options={activeGroups.map((g) => ({ value: g.id, label: g.name, description: g.isActive ? undefined : 'غیرفعال' }))}
+            emptyText="هنوز گروه فعالی ندارید."
+            addLabel="گروه جدید"
+            onAdd={(q) => setGroupSheet(q)}
+          />
           {noGroups && <p className={styles.note}>همه گروه‌ها غیرفعال هستند. ابتدا از بخش «گروه‌های کالا» یک گروه بسازید یا فعال کنید.</p>}
         </Field>
 
@@ -201,14 +204,17 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
                 : undefined
           }
         >
-          <SelectInput id="f-unitId" value={values.unitId} onChange={(e) => onUnitChange(e.target.value)} invalid={!!errors['unitId']} disabled={used}>
-            {localUnits.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
-            ))}
-            <option value={NEW_UNIT}>＋ واحد جدید…</option>
-          </SelectInput>
+          <Picker
+            id="f-unitId"
+            title="واحد شمارش"
+            value={values.unitId}
+            onChange={(v) => set('unitId', v)}
+            invalid={!!errors['unitId']}
+            disabled={used}
+            options={localUnits.map((u) => ({ value: u.id, label: u.name, description: u.allowsFraction ? 'اعشاری مجاز' : undefined }))}
+            addLabel="واحد جدید"
+            onAdd={(q) => setUnitSheet(q)}
+          />
         </Field>
 
         <Field label="کد کالا" htmlFor="f-code" error={errors['code']} hint={editing ? 'کد باید یکتا باشد.' : 'اگر خالی بگذارید، کد به‌صورت خودکار ساخته می‌شود.'}>
@@ -263,13 +269,26 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
         </Button>
       </div>
 
+      {leave.confirm}
+      <NewGroupSheet
+        initialName={groupSheet}
+        onClose={() => setGroupSheet(null)}
+        onCreated={(created) => {
+          setLocalGroups((list) => [...list, created])
+          set('groupId', created.id)
+          setGroupSheet(null)
+          toast.show(`گروه «${created.name}» اضافه شد.`)
+        }}
+      />
       <NewUnitSheet
-        open={unitSheet}
-        onClose={() => setUnitSheet(false)}
+        key={unitSheet ?? 'closed'}
+        open={unitSheet !== null}
+        initialName={unitSheet ?? ''}
+        onClose={() => setUnitSheet(null)}
         onCreated={(created) => {
           setLocalUnits((list) => [...list, created])
           set('unitId', created.id)
-          setUnitSheet(false)
+          setUnitSheet(null)
           toast.show(`واحد «${created.name}» اضافه شد.`)
         }}
       />
@@ -295,8 +314,8 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
   )
 }
 
-function NewUnitSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (unit: Unit) => void }) {
-  const [name, setName] = useState('')
+function NewUnitSheet({ open, initialName, onClose, onCreated }: { open: boolean; initialName: string; onClose: () => void; onCreated: (unit: Unit) => void }) {
+  const [name, setName] = useState(initialName)
   const [fraction, setFraction] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -325,6 +344,43 @@ function NewUnitSheet({ open, onClose, onCreated }: { open: boolean; onClose: ()
         <Switch checked={fraction} onChange={setFraction} label="تعداد اعشاری مجاز باشد" description="برای کالاهایی که وزنی یا متری فروخته می‌شوند (کیلو، متر، لیتر). بعد از استفاده در کالا قابل تغییر نیست." />
         <Button block loading={saving} onClick={() => void submit()}>
           افزودن واحد
+        </Button>
+      </div>
+    </Sheet>
+  )
+}
+
+function NewGroupSheet({ initialName, onClose, onCreated }: { initialName: string | null; onClose: () => void; onCreated: (group: ProductGroup) => void }) {
+  if (initialName === null) return null
+  return <NewGroupForm initialName={initialName} onClose={onClose} onCreated={onCreated} />
+}
+
+function NewGroupForm({ initialName, onClose, onCreated }: { initialName: string; onClose: () => void; onCreated: (group: ProductGroup) => void }) {
+  const [name, setName] = useState(initialName)
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const submit = async () => {
+    if (saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      onCreated(await getCatalog().groups.create({ name }))
+    } catch (e) {
+      setError(e instanceof ValidationError ? (e.fieldErrors['name'] ?? e.userMessage) : toUserMessage(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Sheet open title="گروه جدید" onClose={onClose}>
+      <div className={styles.sheetBody}>
+        <Field label="نام گروه" htmlFor="group-name" error={error ?? undefined}>
+          <TextInput id="group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً لبنیات" invalid={!!error} autoComplete="off" maxLength={60} />
+        </Field>
+        <Button block loading={saving} onClick={() => void submit()}>
+          افزودن گروه
         </Button>
       </div>
     </Sheet>

@@ -1,4 +1,4 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
 import { formatMoneyTyping, formatQuantityTyping } from '../services/productForm'
 import { Icon } from './Icon'
 import styles from './Field.module.css'
@@ -47,17 +47,6 @@ export function TextInput({ invalid, ...rest }: InputHTMLAttributes<HTMLInputEle
 
 export function TextArea({ invalid, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement> & InvalidProps) {
   return <textarea className={`${cls(invalid)} ${styles.textarea}`} aria-invalid={invalid || undefined} {...rest} />
-}
-
-export function SelectInput({ invalid, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement> & InvalidProps) {
-  return (
-    <div className={styles.selectWrap}>
-      <select className={`${cls(invalid)} ${styles.select}`} aria-invalid={invalid || undefined} {...rest}>
-        {children}
-      </select>
-      <Icon name="chevronLeft" size={16} className={styles.selectArrow} />
-    </div>
-  )
 }
 
 interface TypedProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type' | 'inputMode'>, InvalidProps {

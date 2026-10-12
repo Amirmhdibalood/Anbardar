@@ -7,6 +7,7 @@ import { PageHeader } from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
 import { useGoBack } from '../hooks/useGoBack'
+import { useLeaveConfirm } from '../hooks/useLeaveConfirm'
 import { getPurchases, getReturns } from '../services/appContext'
 import { toUserMessage, ValidationError } from '../utils/errors'
 import { formatMoney } from '../utils/money'
@@ -24,6 +25,7 @@ export default function NewPurchaseReturnPage() {
   }, [id])
   const { data, error, loading, reload } = useAsync(load)
   const [qtys, setQtys] = useState<Record<string, string>>({})
+  const leave = useLeaveConfirm(Object.values(qtys).some((q) => q.trim() !== '' && q.trim() !== '0' && q.trim() !== '۰'), goBack)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const lines = useMemo(() => data?.returnable.filter((r) => r.remaining > 0) ?? [], [data])
@@ -82,7 +84,8 @@ export default function NewPurchaseReturnPage() {
 
   return (
     <div className={styles.page} data-testid="purchase-return-form">
-      <PageHeader title="برگشت خرید" onBack={goBack} />
+      <PageHeader title="برگشت خرید" onBack={leave.back} />
+      {leave.confirm}
       <p className={styles.hint}>کالایی که به تأمین‌کننده برمی‌گردانید را مشخص کنید. از لایه همان خرید (در صورت موجود بودن) کم می‌شود.</p>
       {lines.length === 0 ? (
         <EmptyState compact icon="check" title="چیزی برای برگشت نمانده" description="همه ردیف‌ها قبلاً برگشت خورده‌اند یا موجودی کافی نیست." />

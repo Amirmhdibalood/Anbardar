@@ -4,6 +4,7 @@ import type { Customer, PartyInput, Supplier } from '../../models/party'
 import { useAsync } from '../../hooks/useAsync'
 import { getStock } from '../../services/appContext'
 import { draftToInput, draftTotals, isFutureDay, lineError, mapServiceErrors, stepQuantity, type DraftInput, type InvoiceDraft, type LineDraft } from '../../services/invoiceForm'
+import { toPersianDigits } from '../../utils/persian'
 import { toUserMessage } from '../../utils/errors'
 import { toJalali } from '../../utils/jalali'
 import { formatMoney } from '../../utils/money'
@@ -11,9 +12,10 @@ import { formatInteger } from '../../utils/persian'
 import { formatQuantityWithUnit, quantityToInputText, QUANTITY_SCALE } from '../../utils/quantity'
 import { Button } from '../Button'
 import { ConfirmSheet } from '../ConfirmSheet'
-import { Field, MoneyInput, QuantityInput, SelectInput, TextInput } from '../Field'
+import { Field, MoneyInput, QuantityInput, TextInput } from '../Field'
 import { Icon } from '../Icon'
 import { JalaliDatePicker } from '../JalaliDatePicker'
+import { Picker } from '../Picker'
 import { PageHeader } from '../PageHeader'
 import { PartySheet } from '../PartySheet'
 import { ProductPicker } from './ProductPicker'
@@ -142,26 +144,31 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         <div className={styles.top}>
           <Field label={partyLabel} htmlFor="inv-party" error={errors['party']}>
             <div className={styles.partyRow}>
-              <SelectInput id="inv-party" value={draft.partyId} onChange={(e) => update({ partyId: e.target.value })} invalid={!!errors['party']}>
-                {activeParties.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </SelectInput>
+              <Picker
+                id="inv-party"
+                title={partyLabel}
+                value={draft.partyId}
+                onChange={(v) => update({ partyId: v })}
+                invalid={!!errors['party']}
+                options={activeParties.map((p) => ({ value: p.id, label: p.name, description: p.isSystem ? 'نقدی' : p.phone ? toPersianDigits(p.phone) : undefined }))}
+                addLabel={`${partyLabel} جدید`}
+                onAdd={() => setNewParty(true)}
+              />
               <button type="button" className={styles.squareButton} aria-label={`${partyLabel} جدید`} title={`${partyLabel} جدید`} onClick={() => setNewParty(true)}>
                 <Icon name="plus" size={19} />
               </button>
             </div>
           </Field>
           <Field label="انبار" htmlFor="inv-warehouse" error={errors['warehouse']}>
-            <SelectInput id="inv-warehouse" value={draft.warehouseId} onChange={(e) => update({ warehouseId: e.target.value })} invalid={!!errors['warehouse']}>
-              {activeWarehouses.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </SelectInput>
+            <Picker
+              id="inv-warehouse"
+              title="انبار"
+              value={draft.warehouseId}
+              onChange={(v) => update({ warehouseId: v })}
+              invalid={!!errors['warehouse']}
+              options={activeWarehouses.map((w) => ({ value: w.id, label: w.name }))}
+              emptyText="انبار فعالی وجود ندارد."
+            />
           </Field>
         </div>
         <div className={props.showReference ? styles.two : undefined}>

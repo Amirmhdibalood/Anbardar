@@ -1,6 +1,8 @@
 // تست End-to-End فاز ۳ (کالا و گروه کالا) در Chrome بدون رابط روی نسخه build
 // اجرا: npm run build && (npx vite preview --port 4173 &) && node scripts/e2e-products.mjs
 import puppeteer from 'puppeteer-core'
+import { setupDevice } from './lib/device.mjs'
+import { pick, pickAdd, pickedText, pickerOptions } from './lib/picker.mjs'
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4173/'
 const OUT = new URL('../screenshots/', import.meta.url).pathname
@@ -13,7 +15,7 @@ const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH
 async function run(theme) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  await setupDevice(page)
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && problems.push(`[${theme}] console.${m.type()}: ${m.text()}`))
   page.on('pageerror', (e) => problems.push(`[${theme}] pageerror: ${e.message}`))
   page.on('requestfailed', (r) => problems.push(`[${theme}] requestfailed: ${r.url()}`))
@@ -33,6 +35,7 @@ async function run(theme) {
   const clickText = async (text, tag = 'button') => {
     const [el] = await page.$$(`xpath/.//${tag}[contains(normalize-space(.), "${text}")] | .//a[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
@@ -47,12 +50,7 @@ async function run(theme) {
     await clear(sel)
     if (text) await page.type(sel, text)
   }
-  const selectByText = async (sel, text) => {
-    const value = await page.$eval(sel, (s, tx) => [...s.options].find((o) => o.textContent.trim() === tx)?.value, text)
-    if (!value) throw new Error('option not found: ' + text)
-    await page.select(sel, value)
-    await settle(150)
-  }
+  const selectByText = (sel, text) => (text.startsWith('＋') ? pickAdd(page, sel) : pick(page, sel, text))
   const waitText = async (text, ms = 4000) => {
     const end = Date.now() + ms
     while (Date.now() < end) {
@@ -82,10 +80,7 @@ async function run(theme) {
   await settle()
   check(t('new product form opens'), (await body()).includes('کالای جدید'))
   check(t('bottom nav hidden on form'), !(await page.$('nav[aria-label="ناوبری اصلی"]')))
-  check(t('default unit is عدد and group is عمومی'), await page.evaluate(() => {
-    const u = document.querySelector('#f-unitId'); const g = document.querySelector('#f-groupId')
-    return u.options[u.selectedIndex].text === 'عدد' && g.options[g.selectedIndex].text === 'عمومی'
-  }))
+  check(t('default unit is عدد and group is عمومی'), (await pickedText(page, '#f-unitId')) === 'عدد' && (await pickedText(page, '#f-groupId')) === 'عمومی')
   await shot('product-form-new')
   await clickText('ثبت کالا')
   await settle(500)
@@ -142,7 +137,7 @@ async function run(theme) {
   await fill('#unit-name', 'تخته')
   await clickText('افزودن واحد')
   await settle(400)
-  check(t('custom unit created and selected'), await page.evaluate(() => { const u = document.querySelector('#f-unitId'); return u.options[u.selectedIndex].text === 'تخته' }))
+  check(t('custom unit created and selected'), (await pickedText(page, '#f-unitId')) === 'تخته')
   await fill('#f-code', 'T-1')
   await clickText('ثبت کالا')
   await settle(600)

@@ -20,7 +20,14 @@ export function Sheet({ open, title, onClose, children }: Props) {
 
   useEffect(() => {
     if (!open) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && closeRef.current()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      // برگه‌های تودرتو (مثل انتخاب‌گر داخل فرم): فقط بالاترین برگه بسته شود
+      const dialogs = document.querySelectorAll('[role="dialog"]')
+      if (dialogs[dialogs.length - 1] !== panelRef.current) return
+      e.stopPropagation()
+      closeRef.current()
+    }
     document.addEventListener('keydown', onKey)
     panelRef.current?.querySelector<HTMLElement>('a,button')?.focus()
     return () => document.removeEventListener('keydown', onKey)

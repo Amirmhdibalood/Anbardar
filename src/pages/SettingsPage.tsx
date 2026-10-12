@@ -1,5 +1,6 @@
 import { Card } from '../components/Card'
 import { Field, TextInput } from '../components/Field'
+import { Picker } from '../components/Picker'
 import { PageHeader } from '../components/PageHeader'
 import { SegmentedControl, type SegmentOption } from '../components/SegmentedControl'
 import { useSettings } from '../hooks/useSettings'
@@ -54,26 +55,16 @@ export default function SettingsPage() {
       <Card className={styles.group}>
         <h2 className={styles.heading}>روش محاسبه سود</h2>
         <p className={styles.hint}>بهای هر سه روش هنگام فروش ذخیره شده؛ عوض کردن این گزینه گزارش‌ها را فوراً عوض می‌کند.</p>
-        <div className={styles.fieldGap} role="radiogroup" aria-label="روش بها">
-          {COST_METHODS.map((m) => (
-            <label key={m} className={styles.radioRow}>
-              <input type="radio" name="cost-method" checked={settings.costMethod === m} onChange={() => setCostMethod(m as CostMethod)} />
-              <span>{costMethodLabel(m)}</span>
-            </label>
-          ))}
+        <div className={styles.fieldGap}>
+          <Picker id="cost-method" title="روش محاسبه سود" value={settings.costMethod} onChange={(m) => setCostMethod(m as CostMethod)} options={COST_METHODS.map((m) => ({ value: m, label: costMethodLabel(m) }))} />
         </div>
       </Card>
 
       <Card className={styles.group}>
         <h2 className={styles.heading}>پیشنهاد قیمت فروش</h2>
         <p className={styles.hint}>وقتی کالا را به فاکتور فروش اضافه می‌کنید، قیمت واحد چطور پر شود؟ همیشه می‌توانید دستی عوضش کنید.</p>
-        <div className={styles.fieldGap} role="radiogroup" aria-label="پیشنهاد قیمت">
-          {SALE_PRICE_MODES.map((m) => (
-            <label key={m} className={styles.radioRow}>
-              <input type="radio" name="sale-price-mode" checked={settings.salePriceMode === m} onChange={() => setSalePriceMode(m as SalePriceMode)} />
-              <span>{salePriceModeLabel(m)}</span>
-            </label>
-          ))}
+        <div className={styles.fieldGap}>
+          <Picker id="sale-price-mode" title="پیشنهاد قیمت فروش" value={settings.salePriceMode} onChange={(m) => setSalePriceMode(m as SalePriceMode)} options={SALE_PRICE_MODES.map((m) => ({ value: m, label: salePriceModeLabel(m) }))} />
         </div>
         {settings.salePriceMode === 'markup' && (
           <Field label="درصد سود سراسری" htmlFor="markup-bp" error={markupError ?? undefined} hint="اگر برای گروهی درصد جدا بگذارید، همان اولویت دارد.">

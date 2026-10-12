@@ -2,12 +2,14 @@ import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
-import { Field, QuantityInput, SelectInput } from '../components/Field'
+import { Field, QuantityInput } from '../components/Field'
 import { PageHeader } from '../components/PageHeader'
+import { Picker } from '../components/Picker'
 import { ProductPicker } from '../components/invoice/ProductPicker'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
 import { useGoBack } from '../hooks/useGoBack'
+import { useLeaveConfirm } from '../hooks/useLeaveConfirm'
 import type { Product } from '../models/catalog'
 import { getCatalog, getStock, getTransfers } from '../services/appContext'
 import { toUserMessage, ValidationError } from '../utils/errors'
@@ -28,6 +30,7 @@ export default function NewTransferPage() {
   const [fromId, setFromId] = useState('')
   const [toId, setToId] = useState('')
   const [lines, setLines] = useState<Line[]>([])
+  const leave = useLeaveConfirm(lines.length > 0, goBack, 'کالاهایی که برای انتقال انتخاب کرده‌اید ذخیره نمی‌شوند.')
   const [picker, setPicker] = useState(false)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -104,25 +107,14 @@ export default function NewTransferPage() {
 
   return (
     <div className={styles.page} data-testid="transfer-form">
-      <PageHeader title="انتقال جدید" onBack={goBack} />
+      <PageHeader title="انتقال جدید" onBack={leave.back} />
+      {leave.confirm}
       <div className={`${styles.card} ${styles.filters}`}>
         <Field label="از انبار" htmlFor="tr-from">
-          <SelectInput id="tr-from" value={from} onChange={(e) => setFromId(e.target.value)}>
-            {warehouses.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </SelectInput>
+          <Picker id="tr-from" title="از انبار" value={from} onChange={setFromId} options={warehouses.map((w) => ({ value: w.id, label: w.name }))} emptyText="انبار فعالی وجود ندارد." />
         </Field>
         <Field label="به انبار" htmlFor="tr-to">
-          <SelectInput id="tr-to" value={to} onChange={(e) => setToId(e.target.value)}>
-            {warehouses.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </SelectInput>
+          <Picker id="tr-to" title="به انبار" value={to} onChange={setToId} options={warehouses.map((w) => ({ value: w.id, label: w.name }))} emptyText="انبار فعالی وجود ندارد." />
         </Field>
       </div>
 

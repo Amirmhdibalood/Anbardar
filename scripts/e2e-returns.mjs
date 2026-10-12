@@ -1,5 +1,7 @@
 // تست End-to-End فاز ۹ (برگشت فروش/خرید، انتقال بین انبارها)
 import puppeteer from 'puppeteer-core'
+import { setupDevice } from './lib/device.mjs'
+import { pick, pickAdd, pickedText, pickerOptions } from './lib/picker.mjs'
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:4173/'
 const OUT = new URL('../screenshots/', import.meta.url).pathname
@@ -16,7 +18,7 @@ const browser = await puppeteer.launch({
 async function run(theme) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  await setupDevice(page)
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && problems.push(`[${theme}] console.${m.type()}: ${m.text()}`))
   page.on('pageerror', (e) => problems.push(`[${theme}] pageerror: ${e.message}`))
   page.on('requestfailed', (r) => problems.push(`[${theme}] requestfailed: ${r.url()}`))
@@ -36,6 +38,7 @@ async function run(theme) {
   const clickText = async (text, tag = 'button') => {
     const [el] = await page.$$(`xpath/.//${tag}[contains(normalize-space(.), "${text}")] | .//a[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
@@ -55,15 +58,11 @@ async function run(theme) {
     for (let i = 0; i < 40 && (await page.$eval(sel, (e) => e.value)) !== ''; i++) await page.keyboard.press('Backspace')
     if (text) await page.type(sel, text)
   }
-  const selectByText = async (sel, text) => {
-    const value = await page.$eval(sel, (s, tx) => [...s.options].find((o) => o.textContent.trim() === tx)?.value, text)
-    if (!value) throw new Error('option not found: ' + text)
-    await page.select(sel, value)
-    await settle(150)
-  }
+  const selectByText = (sel, text) => (text.startsWith('＋') ? pickAdd(page, sel) : pick(page, sel, text))
   const dialogClick = async (text) => {
     const [el] = await page.$$(`xpath/.//*[@role="dialog"]//button[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('dialog button not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
@@ -157,7 +156,7 @@ async function run(theme) {
   check(t('transfer form'), await waitText('از انبار'))
   await shot('transfer-form')
   // ensure from = مرکزی, to = فرعی
-  const fromOpts = await page.$$eval('#tr-from option', (os) => os.map((o) => o.textContent.trim()))
+  const fromOpts = await pickerOptions(page, '#tr-from')
   const toName = fromOpts.find((n) => n.includes('فرعی'))
   const fromName = fromOpts.find((n) => n.includes('مرکزی')) || fromOpts[0]
   if (fromName) await selectByText('#tr-from', fromName)

@@ -1,6 +1,7 @@
 .backdrop {
   position: fixed;
   inset: 0;
+  bottom: var(--kb-inset, 0px);
   z-index: 50;
   background: var(--overlay);
   display: flex;

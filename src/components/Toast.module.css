@@ -1,7 +1,7 @@
 .region {
   position: fixed;
   inset-inline: 0;
-  bottom: calc(var(--nav-height) + var(--safe-bottom) + 14px);
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + var(--kb-inset, 0px) + 14px);
   z-index: 80;
   display: flex;
   flex-direction: column;

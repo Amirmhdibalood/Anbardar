@@ -1,6 +1,8 @@
 // تست End-to-End فاز ۴ (انبار و موجودی) در Chrome بدون رابط روی نسخه build
 // اجرا: npm run build && (npx vite preview --port 4173 &) && node scripts/e2e-stock.mjs
 import puppeteer from 'puppeteer-core'
+import { setupDevice } from './lib/device.mjs'
+import { pick, pickAdd, pickedText, pickerOptions } from './lib/picker.mjs'
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4173/'
 const OUT = new URL('../screenshots/', import.meta.url).pathname
@@ -13,7 +15,7 @@ const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH
 async function run(theme) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  await setupDevice(page)
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && problems.push(`[${theme}] console.${m.type()}: ${m.text()}`))
   page.on('pageerror', (e) => problems.push(`[${theme}] pageerror: ${e.message}`))
   page.on('requestfailed', (r) => problems.push(`[${theme}] requestfailed: ${r.url()}`))
@@ -33,6 +35,7 @@ async function run(theme) {
   const clickText = async (text, tag = 'button') => {
     const [el] = await page.$$(`xpath/.//${tag}[contains(normalize-space(.), "${text}")] | .//a[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
@@ -47,12 +50,7 @@ async function run(theme) {
     await clear(sel)
     if (text) await page.type(sel, text)
   }
-  const selectByText = async (sel, text) => {
-    const value = await page.$eval(sel, (s, tx) => [...s.options].find((o) => o.textContent.trim() === tx)?.value, text)
-    if (!value) throw new Error('option not found: ' + text)
-    await page.select(sel, value)
-    await settle(150)
-  }
+  const selectByText = (sel, text) => (text.startsWith('＋') ? pickAdd(page, sel) : pick(page, sel, text))
   const waitText = async (text, ms = 4000) => {
     const end = Date.now() + ms
     while (Date.now() < end) {
@@ -82,6 +80,7 @@ async function run(theme) {
   const openCard = async (name) => {
     const [el] = await page.$$(`xpath/.//button[contains(@aria-label, "موجودی ${name}")]`)
     if (!el) throw new Error('card not found: ' + name)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle(450)
   }
@@ -165,7 +164,8 @@ async function run(theme) {
   check(t('attention filter shows only برنج and کابل'), list.length === 2 && !list.some((c) => c.includes('هدفون')), JSON.stringify(list))
   check(t('filter kept in URL'), page.url().includes('f=low'))
   await shot('stock-attention')
-  await clickText('همه', 'button')
+  // تراشه «همه» (نه انتخاب‌گر «همه انبارها»)
+  await page.evaluate(() => [...document.querySelectorAll('button:not([aria-haspopup])')].find((b) => b.textContent.trim().startsWith('همه'))?.click())
   await settle(400)
 
   // ---- ۵) جستجو
@@ -248,9 +248,9 @@ async function run(theme) {
   await shot('warehouses-two')
   // اصلاح موجودی در انبار دوم
   await go('#/stock')
-  const optionTexts = await page.$$eval('select[aria-label="انبار"] option', (o) => o.map((x) => x.textContent.trim()))
+  const optionTexts = (await pickerOptions(page, '#stock-warehouse'))
   check(t('stock page warehouse select lists both'), optionTexts.join('|') === 'همه انبارها|انبار پشتی|انبار مغازه', optionTexts.join('|'))
-  await selectByText('select[aria-label="انبار"]', 'انبار پشتی')
+  await selectByText('#stock-warehouse', 'انبار پشتی')
   await settle(500)
   list = await cards()
   check(t('second warehouse starts empty (all out)'), list.length === 3 && list.every((c) => c.includes('ناموجود')), JSON.stringify(list))
@@ -269,7 +269,7 @@ async function run(theme) {
   await settle(300)
   list = await cards()
   check(t('filtered view shows only that warehouse quantity (۷)'), list.some((c) => c.includes('هدفون') && c.includes('۷ ') ), JSON.stringify(list))
-  await page.select('select[aria-label="انبار"]', '')
+  await pick(page, '#stock-warehouse', 'همه انبارها')
   await settle(500)
   list = await cards()
   check(t('all-warehouses view sums to ۴۶'), list.some((c) => c.includes('هدفون') && c.includes('۴۶')), JSON.stringify(list))

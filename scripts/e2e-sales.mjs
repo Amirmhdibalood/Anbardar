@@ -1,5 +1,7 @@
 // تست End-to-End فاز ۶ (فروش، ماشین‌حساب قیمت، تنظیمات بها) در Chrome بدون رابط
 import puppeteer from 'puppeteer-core'
+import { setupDevice } from './lib/device.mjs'
+import { pick, pickAdd, pickedText } from './lib/picker.mjs'
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4173/'
 const OUT = new URL('../screenshots/', import.meta.url).pathname
@@ -12,7 +14,7 @@ const browser = await puppeteer.launch({ executablePath: process.env.CHROME_PATH
 async function run(theme) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  await setupDevice(page)
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && problems.push(`[${theme}] console.${m.type()}: ${m.text()}`))
   page.on('pageerror', (e) => problems.push(`[${theme}] pageerror: ${e.message}`))
   page.on('requestfailed', (r) => problems.push(`[${theme}] requestfailed: ${r.url()}`))
@@ -32,12 +34,14 @@ async function run(theme) {
   const clickText = async (text, tag = 'button') => {
     const [el] = await page.$$(`xpath/.//${tag}[contains(normalize-space(.), "${text}")] | .//a[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
   const clickLabel = async (text) => {
     const [el] = await page.$$(`xpath/.//label[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('label not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
@@ -53,12 +57,7 @@ async function run(theme) {
     for (let i = 0; i < 40 && (await page.$eval(sel, (e) => e.value)) !== ''; i++) await page.keyboard.press('Backspace')
     if (text) await page.type(sel, text)
   }
-  const selectByText = async (sel, text) => {
-    const value = await page.$eval(sel, (s, tx) => [...s.options].find((o) => o.textContent.trim() === tx)?.value, text)
-    if (!value) throw new Error('option not found: ' + text)
-    await page.select(sel, value)
-    await settle(150)
-  }
+  const selectByText = (sel, text) => (text.startsWith('＋') ? pickAdd(page, sel) : pick(page, sel, text))
   const waitText = async (text, ms = 4000) => {
     const end = Date.now() + ms
     while (Date.now() < end) {
@@ -71,6 +70,7 @@ async function run(theme) {
   const dialogClick = async (text) => {
     const [el] = await page.$$(`xpath/.//*[@role="dialog"]//button[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('dialog button not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }
@@ -130,7 +130,7 @@ async function run(theme) {
   await shot('settings-pricing')
   check(t('settings has cost method and sale price mode'), (await body()).includes('روش محاسبه سود') && (await body()).includes('پیشنهاد قیمت فروش'))
   // پیش‌فرض last_sale است؛ حالت markup را انتخاب و درصد بگذار
-  await clickLabel('آخرین قیمت خرید + درصد سود')
+  await pick(page, '#sale-price-mode', 'آخرین قیمت خرید + درصد سود')
   await settle(200)
   await fill('#markup-bp', '20')
   await settle(200)
@@ -143,7 +143,7 @@ async function run(theme) {
   // ---- فرم فروش
   await page.click('a[aria-label="ثبت فروش"]')
   await settle(500)
-  check(t('sale form defaults to cash customer'), (await page.$eval('#inv-party', (s) => s.options[s.selectedIndex].text)) === 'مشتری نقدی')
+  check(t('sale form defaults to cash customer'), (await pickedText(page, '#inv-party')) === 'مشتری نقدی')
   await shot('sale-form-empty')
   await addLine('هدفون')
   // markup 20% روی آخرین خرید ۱۰۰٬۰۰۰ = ۱۲۰٬۰۰۰
@@ -166,7 +166,7 @@ async function run(theme) {
   await page.type('#party-name', 'آقای رضایی')
   await dialogClick('افزودن مشتری')
   await settle(400)
-  check(t('inline customer created'), (await page.$eval('#inv-party', (s) => s.options[s.selectedIndex].text)) === 'آقای رضایی')
+  check(t('inline customer created'), (await pickedText(page, '#inv-party')) === 'آقای رضایی')
 
   await clickText('ثبت فروش')
   await settle(900)
@@ -182,7 +182,7 @@ async function run(theme) {
 
   // پیشنهاد last_sale بعد از فروش
   await go('#/more/settings')
-  await clickLabel('آخرین قیمت فروش همین کالا')
+  await pick(page, '#sale-price-mode', 'آخرین قیمت فروش همین کالا')
   await settle(200)
   await go('#/sales/new')
   await addLine('هدفون')

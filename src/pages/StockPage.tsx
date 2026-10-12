@@ -4,9 +4,10 @@ import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
 import { EmptyState } from '../components/EmptyState'
-import { Field, MoneyInput, QuantityInput, SelectInput, TextInput } from '../components/Field'
+import { Field, MoneyInput, QuantityInput, TextInput } from '../components/Field'
 import { Icon } from '../components/Icon'
 import { PageHeader } from '../components/PageHeader'
+import { Picker } from '../components/Picker'
 import { ProductTabs } from '../components/ProductTabs'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
@@ -100,15 +101,13 @@ export default function StockPage() {
         data && (
           <>
             <div className={styles.filters}>
-              <SelectInput aria-label="انبار" value={warehouseId} onChange={(e) => update({ w: e.target.value || null })}>
-                <option value="">همه انبارها</option>
-                {data.warehouses.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                    {w.isActive ? '' : ' (غیرفعال)'}
-                  </option>
-                ))}
-              </SelectInput>
+              <Picker
+                id="stock-warehouse"
+                title="انبار"
+                value={warehouseId}
+                onChange={(v) => update({ w: v || null })}
+                options={[{ value: '', label: 'همه انبارها' }, ...data.warehouses.map((w) => ({ value: w.id, label: w.name, description: w.isActive ? undefined : 'غیرفعال' }))]}
+              />
               <label className={styles.search}>
                 <Icon name="search" size={18} />
                 <input
@@ -392,22 +391,17 @@ function AdjustSheet({
         }}
       >
         <Field label="انبار" htmlFor="adj-warehouse">
-          <SelectInput
+          <Picker
             id="adj-warehouse"
+            title="انبار"
             value={warehouseId}
-            onChange={(e) => {
-              setWarehouseId(e.target.value)
+            onChange={(v) => {
+              setWarehouseId(v)
               setErrors({})
             }}
-          >
-            {warehouses
-              .filter((w) => w.isActive)
-              .map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-          </SelectInput>
+            options={warehouses.filter((w) => w.isActive).map((w) => ({ value: w.id, label: w.name }))}
+            emptyText="انبار فعالی وجود ندارد."
+          />
         </Field>
         <p className={styles.currentLine}>
           موجودی فعلی: <strong>{current === undefined ? '…' : `${formatQuantity(current)} ${product.unitName}`}</strong>

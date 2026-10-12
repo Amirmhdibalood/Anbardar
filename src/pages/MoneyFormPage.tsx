@@ -3,14 +3,17 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
-import { Field, MoneyInput, SelectInput, TextArea } from '../components/Field'
+import { Field, MoneyInput, TextArea } from '../components/Field'
 import { JalaliDatePicker } from '../components/JalaliDatePicker'
 import { PageHeader } from '../components/PageHeader'
+import { Picker } from '../components/Picker'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
 import { useGoBack } from '../hooks/useGoBack'
+import { useLeaveConfirm } from '../hooks/useLeaveConfirm'
 import { MONEY_METHOD_LABELS, type MoneyMethod } from '../models/money'
+import { partyRoleLabel } from '../models/party'
 import { compareFa } from '../utils/collate'
 import { getCatalog, getMoney } from '../services/appContext'
 import { draftDate, isFutureDay } from '../services/invoiceForm'
@@ -46,6 +49,9 @@ export default function MoneyFormPage() {
   const [note, setNote] = useState('')
   const [alloc, setAlloc] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
+  // مقدار پیش‌پر شده از فاکتور «تغییر کاربر» حساب نمی‌شود
+  const [baseline, setBaseline] = useState({ amount: '', alloc: '{}' })
+  const leave = useLeaveConfirm(amount !== baseline.amount || note.trim() !== '' || JSON.stringify(alloc) !== baseline.alloc, goBack)
   const [saving, setSaving] = useState(false)
 
   const loadParties = useCallback(() => getCatalog().parties.list(), [])
@@ -62,6 +68,7 @@ export default function MoneyFormPage() {
     if (inv) {
       setAmount(typed(inv.settlement.remaining))
       setAlloc({ [inv.id]: typed(inv.settlement.remaining) })
+      setBaseline({ amount: typed(inv.settlement.remaining), alloc: JSON.stringify({ [inv.id]: typed(inv.settlement.remaining) }) })
     }
   }
 
@@ -122,7 +129,8 @@ export default function MoneyFormPage() {
 
   return (
     <>
-      <PageHeader title={title} onBack={goBack} />
+      <PageHeader title={title} onBack={leave.back} />
+      {leave.confirm}
       <form className={styles.form} noValidate onSubmit={(e) => (e.preventDefault(), void save())} data-testid="money-form">
         <SegmentedControl
           label="نوع سند"
@@ -134,26 +142,21 @@ export default function MoneyFormPage() {
           onChange={(k) => (setKind(k), setAlloc({}))}
         />
         <Field label="طرف حساب" required htmlFor="money-party" error={errors['partyId']}>
-          <SelectInput id="money-party" value={partyId} onChange={(e) => (setPartyId(e.target.value), setAlloc({}))} invalid={!!errors['partyId']}>
-            <option value="">انتخاب کنید</option>
-            {choices.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </SelectInput>
+          <Picker
+            id="money-party"
+            title="طرف حساب"
+            value={partyId}
+            onChange={(v) => (setPartyId(v), setAlloc({}))}
+            invalid={!!errors['partyId']}
+            options={choices.map((p) => ({ value: p.id, label: p.name, description: partyRoleLabel(p) }))}
+            emptyText="طرف حسابی ندارید."
+          />
         </Field>
         <Field label="مبلغ" required htmlFor="money-amount" error={errors['amount']}>
           <MoneyInput id="money-amount" value={amount} onChange={setAmount} invalid={!!errors['amount']} suffix="تومان" />
         </Field>
         <Field label="روش" htmlFor="money-method">
-          <SelectInput id="money-method" value={method} onChange={(e) => setMethod(e.target.value as MoneyMethod)}>
-            {METHODS.map((m) => (
-              <option key={m} value={m}>
-                {MONEY_METHOD_LABELS[m]}
-              </option>
-            ))}
-          </SelectInput>
+          <Picker id="money-method" title="روش پرداخت" value={method} onChange={setMethod} options={METHODS.map((m) => ({ value: m, label: MONEY_METHOD_LABELS[m] }))} />
         </Field>
         <Field label="تاریخ" htmlFor="money-date" error={errors['docDate']}>
           <JalaliDatePicker id="money-date" value={day} onChange={setDay} />

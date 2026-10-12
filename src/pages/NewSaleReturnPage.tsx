@@ -7,6 +7,7 @@ import { PageHeader } from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
 import { useGoBack } from '../hooks/useGoBack'
+import { useLeaveConfirm } from '../hooks/useLeaveConfirm'
 import { getReturns, getSales } from '../services/appContext'
 import { toUserMessage, ValidationError } from '../utils/errors'
 import { formatMoney } from '../utils/money'
@@ -25,6 +26,7 @@ export default function NewSaleReturnPage() {
   }, [id])
   const { data, error, loading, reload } = useAsync(load)
   const [qtys, setQtys] = useState<Record<string, string>>({})
+  const leave = useLeaveConfirm(Object.values(qtys).some((q) => q.trim() !== '' && q.trim() !== '0' && q.trim() !== '۰'), goBack)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -85,7 +87,8 @@ export default function NewSaleReturnPage() {
 
   return (
     <div className={styles.page} data-testid="sale-return-form">
-      <PageHeader title="برگشت فروش" onBack={goBack} />
+      <PageHeader title="برگشت فروش" onBack={leave.back} />
+      {leave.confirm}
       <p className={styles.hint}>کالایی که مشتری برگردانده را مشخص کنید. موجودی انبار زیاد می‌شود و بهای همان فروش روی لایه جدید می‌نشیند.</p>
       {lines.length === 0 ? (
         <EmptyState compact icon="check" title="چیزی برای برگشت نمانده" description="همه ردیف‌های این فاکتور قبلاً برگشت خورده‌اند." />

@@ -1,5 +1,6 @@
 // تست دودی فاز ۱۰ (نسخه، راهنما، بیشتر، بدون خطای کنسول) — تیره و روشن
 import puppeteer from 'puppeteer-core'
+import { setupDevice } from './lib/device.mjs'
 
 const BASE = process.env.BASE_URL ?? 'http://127.0.0.1:4173/'
 const OUT = new URL('../screenshots/', import.meta.url).pathname
@@ -16,7 +17,7 @@ const browser = await puppeteer.launch({
 async function run(theme) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  await setupDevice(page)
   page.on('console', (m) => (m.type() === 'error' || m.type() === 'warning') && problems.push(`[${theme}] console.${m.type()}: ${m.text()}`))
   page.on('pageerror', (e) => problems.push(`[${theme}] pageerror: ${e.message}`))
   page.on('requestfailed', (r) => problems.push(`[${theme}] requestfailed: ${r.url()}`))
@@ -36,6 +37,7 @@ async function run(theme) {
   const clickText = async (text) => {
     const [el] = await page.$$(`xpath/.//button[contains(normalize-space(.), "${text}")] | .//a[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
     await el.click()
     await settle()
   }

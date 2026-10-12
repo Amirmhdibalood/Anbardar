@@ -4,6 +4,7 @@ import { RouteErrorPage } from '../components/RouteErrorPage'
 import { AppLayout } from '../layouts/AppLayout'
 import { FullScreenLayout } from '../layouts/FullScreenLayout'
 import HomePage from '../pages/HomePage'
+import { RootShell } from '../navigation/RootShell'
 
 // صفحه‌های غیراصلی با `lazy` روتر بارگذاری می‌شوند تا شروع برنامه سریع بماند
 const page = (load: () => Promise<{ default: ComponentType }>): Pick<RouteObject, 'lazy'> => ({
@@ -16,6 +17,7 @@ const page = (load: () => Promise<{ default: ComponentType }>): Pick<RouteObject
  */
 const routes: RouteObject[] = [
   {
+    element: <RootShell />,
     errorElement: <RouteErrorPage />,
     children: [
       {

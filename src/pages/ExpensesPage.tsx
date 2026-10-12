@@ -5,9 +5,10 @@ import { Button, IconButton } from '../components/Button'
 import { Chip } from '../components/Chip'
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { EmptyState } from '../components/EmptyState'
-import { Field, MoneyInput, SelectInput, TextArea, TextInput } from '../components/Field'
+import { Field, MoneyInput, TextArea, TextInput } from '../components/Field'
 import { JalaliDatePicker } from '../components/JalaliDatePicker'
 import { PageHeader } from '../components/PageHeader'
+import { Picker } from '../components/Picker'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
@@ -174,13 +175,7 @@ function ExpenseFormSheet({ onClose, onSaved }: { onClose: () => void; onSaved: 
     <Sheet open={true} title="ثبت هزینه" onClose={onClose}>
       <div className={styles.form}>
         <Field label="دسته" htmlFor="ex-cat" required error={errors.category}>
-          <SelectInput id="ex-cat" value={category} onChange={(e) => setCategory(e.target.value as ExpenseCategory)} invalid={!!errors.category}>
-            {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c} value={c}>
-                {expenseCategoryLabel(c)}
-              </option>
-            ))}
-          </SelectInput>
+          <Picker id="ex-cat" title="دسته هزینه" value={category} onChange={setCategory} invalid={!!errors.category} options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: expenseCategoryLabel(c) }))} />
         </Field>
         <Field label="تاریخ" htmlFor="ex-date" hint={future ? 'تاریخ آینده انتخاب شده است.' : undefined}>
           <JalaliDatePicker id="ex-date" value={date} onChange={setDate} />

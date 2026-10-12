@@ -17,6 +17,7 @@
   --radius-lg: 22px;
   --nav-height: 68px;
   --content-pad-bottom: 24px;
+  --kb-inset: 0px;
   --safe-top: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
   --safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
@@ -85,4 +86,9 @@ a {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* با صفحه‌کلید باز، فاصله پایین سیستم (نوار ناوبری) زیر صفحه‌کلید پنهان است و نباید دوباره حساب شود */
+html.kb-open {
+  --safe-bottom: 0px;
 }

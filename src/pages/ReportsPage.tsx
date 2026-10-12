@@ -4,9 +4,10 @@ import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
 import { EmptyState } from '../components/EmptyState'
-import { Field, SelectInput } from '../components/Field'
+import { Field } from '../components/Field'
 import { JalaliDatePicker } from '../components/JalaliDatePicker'
 import { PageHeader } from '../components/PageHeader'
+import { Picker } from '../components/Picker'
 import { PieChart, type ChartSlice } from '../components/PieChart'
 import { useAsync } from '../hooks/useAsync'
 import { useSettings } from '../hooks/useSettings'
@@ -313,24 +314,10 @@ function InvoicesTab({ kind, from, to }: { kind: 'sales' | 'purchases'; from: st
     <>
       <div className={`${styles.card} ${styles.filters}`}>
         <Field label={partyLabel} htmlFor={`rep-${kind}-party`}>
-          <SelectInput id={`rep-${kind}-party`} value={partyId} onChange={(e) => setPartyId(e.target.value)}>
-            <option value="">همه</option>
-            {(meta?.parties ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </SelectInput>
+          <Picker id={`rep-${kind}-party`} title={partyLabel} value={partyId} onChange={setPartyId} options={[{ value: '', label: 'همه' }, ...(meta?.parties ?? []).map((p) => ({ value: p.id, label: p.name }))]} />
         </Field>
         <Field label="انبار" htmlFor={`rep-${kind}-wh`}>
-          <SelectInput id={`rep-${kind}-wh`} value={warehouseId} onChange={(e) => setWarehouseId(e.target.value)}>
-            <option value="">همه</option>
-            {(meta?.warehouses ?? []).map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name}
-              </option>
-            ))}
-          </SelectInput>
+          <Picker id={`rep-${kind}-wh`} title="انبار" value={warehouseId} onChange={setWarehouseId} options={[{ value: '', label: 'همه' }, ...(meta?.warehouses ?? []).map((w) => ({ value: w.id, label: w.name }))]} />
         </Field>
       </div>
 

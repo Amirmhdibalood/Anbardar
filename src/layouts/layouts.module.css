@@ -1,5 +1,6 @@
 .app {
-  height: 100%;
+  /* صفحه‌کلیدی که WebView را کوچک نکرده (روی محتوا افتاده) از ارتفاع کم می‌شود؛ در حالت بومی ۰ است */
+  height: calc(100% - var(--kb-inset, 0px));
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -10,5 +11,8 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  /* فیلد/دکمه‌ای که با فوکوس یا اسکرول به دید می‌آید زیر نوار ثابت پایین (ثبت/جمع) پنهان نماند */
+  scroll-padding-top: calc(16px + var(--safe-top));
+  scroll-padding-bottom: 180px;
   padding: calc(14px + var(--safe-top)) max(18px, calc((100% - 760px) / 2)) var(--content-pad-bottom);
 }

@@ -1,5 +1,6 @@
 // تست معرفی متحرک هنگام باز شدن برنامه (نماد از چپ، نام از راست) + prefers-reduced-motion
 import puppeteer from 'puppeteer-core'
+import { setupDevice, device } from './lib/device.mjs'
 
 const BASE = process.env.BASE_URL ?? 'http://localhost:4173/'
 const OUT = new URL('../screenshots/', import.meta.url).pathname
@@ -12,7 +13,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 async function open(query, reduced = false) {
   const context = await browser.createBrowserContext()
   const page = await context.newPage()
-  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true })
+  await setupDevice(page)
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
   page.on('console', (m) => m.type() === 'error' && problems.push(`console.error: ${m.text()}`))
   if (reduced) await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }])
@@ -44,7 +45,7 @@ async function open(query, reduced = false) {
   const { page, context } = await open('?intro=hold')
   await sleep(1400)
   const box = await page.$eval('#intro .lockup', (e) => { const r = e.getBoundingClientRect(); return { cx: r.x + r.width / 2, w: r.width } })
-  check('lockup settles centered', Math.abs(box.cx - 195) < 4, JSON.stringify(box))
+  check('lockup settles centered', Math.abs(box.cx - device.w / 2) < 4, JSON.stringify(box))
   const order = await page.evaluate(() => document.querySelector('#intro img').getBoundingClientRect().x < document.querySelector('#intro .text').getBoundingClientRect().x)
   check('icon left of text in final lockup', order)
   await page.screenshot({ path: `${OUT}intro-final.png` })

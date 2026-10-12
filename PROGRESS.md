@@ -194,3 +194,15 @@ User explicitly confirmed: ADD «ثبت هزینه» (expense entry). Proceed wi
   - Emulator verification was NOT possible: no KVM on the box, and no Android SDK or emulator on the user's PC.
 - **App icon:** cropped from `anbardar-assets/icon-source.jpg`. Built legacy, round and adaptive icons (glyph foreground inside the 66dp safe zone, purple gradient background, monochrome) for every density, plus favicon.ico, 192/512 web icons and an apple-touch icon. Generator: `scratch/make_icons.py` (not committed; scratch is excluded).
 - **Intro:** an inline animated lockup in index.html (icon from the left, name and subtitle from the right, ≈1.2s, navy #0D122F). It honors prefers-reduced-motion and is skipped under webdriver unless `?intro=1` / `?intro=hold`. The native splash is plain navy (no icon), and the WebView backgroundColor is navy, so there is no white flash. Test: `scripts/e2e-intro.mjs`.
+
+## v1.1.2 (versionCode 5)
+- **Picker:** a custom RTL bottom-sheet picker replaces every native select: party, warehouse, group (with "add group"), unit (with "add unit"), expense category, payment method, transfer from/to, stock warehouse, report filters, and the settings cost method and sale-price mode.
+  - Search when there are more than 6 options; checkmark on the selected option; keyboard and a11y; empty state.
+- **Native top bar removed:** the "انباردار" ActionBar is gone (root cause: edge-to-edge was applied before super.onCreate). The page header is now the top bar, with the title on the right and the back button on the left (single constant `BACK_BUTTON_SIDE`).
+- **Keyboard:** the submit bar sits directly above the keyboard and the focused field stays visible. The bottom inset is applied once (native IME padding or the visualViewport fallback, never both).
+- **Hardware back:**
+  - An open sheet closes first.
+  - A form with unsaved input (product, invoice, receipt/payment, transfer, returns) asks before leaving.
+  - Otherwise the app goes back in history; a root tab goes to Home.
+  - On Home, pressing twice within 2s exits ("برای خروج دوباره بزنید").
+- Tests: `keyboard-back-check.mjs` and the device-matrix `walkthrough.sh` (360x780 / 412x915, 3-button / gesture, keyboard open / closed).
