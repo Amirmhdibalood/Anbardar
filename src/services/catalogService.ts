@@ -90,6 +90,8 @@ export function createCatalogService(db: SqlExecutor) {
         await repos.warehouses.remove(id)
       },
     },
+    /** طرف حساب واحد (مشتری، تأمین‌کننده یا هر دو) */
+    parties: crudService(repos.parties, (i) => validateParty(i, 'طرف حساب', true)),
     customers: crudService(repos.customers, (i) => validateParty(i, 'مشتری')),
     suppliers: crudService(repos.suppliers, (i) => validateParty(i, 'تأمین‌کننده')),
 

@@ -7,6 +7,7 @@ const UNIQUE_MESSAGES: Record<string, string> = {
   'units.name': 'واحدی با این نام وجود دارد.',
   'warehouses.name': 'انباری با این نام وجود دارد.',
   'sales_invoices.invoice_number': 'شماره این فاکتور فروش تکراری است. دوباره تلاش کنید.',
+  'money_documents.request_id': 'این سند قبلاً ثبت شده است.',
   'purchase_invoices.invoice_number': 'شماره این فاکتور خرید تکراری است. دوباره تلاش کنید.',
 }
 
@@ -21,6 +22,10 @@ const TRIGGER_ERRORS: Record<string, AppError> = {
   fraction_not_allowed: new AppError('validation', 'برای واحد این کالا فقط تعداد صحیح (بدون اعشار) مجاز است.'),
   unit_locked: new AppError('protected', 'واحد کالا پس از ثبت اولین تراکنش قابل تغییر نیست.'),
   amount_mismatch: new AppError('validation', 'مبلغ‌های فاکتور با هم نمی‌خوانند. فاکتور را بررسی و دوباره ثبت کنید.'),
+  party_wrong_role: new AppError('validation', 'طرف حساب انتخاب‌شده برای این نوع فاکتور تعریف نشده است (مشتری/تأمین‌کننده).'),
+  party_role_in_use: new AppError('in_use', 'این طرف حساب با همین نقش فاکتور دارد، پس این نقش برداشته نمی‌شود.'),
+  settlement_invalid: new AppError('validation', 'این سند را نمی‌شود به فاکتور انتخاب‌شده وصل کرد (طرف حساب یا نوع سند یکی نیست، یا یکی از آن‌ها ابطال شده).'),
+  settlement_exceeds: new AppError('validation', 'جمع تخصیص‌ها از مبلغ سند بیشتر است.'),
   system_row_protected: new AppError('protected', 'این مورد جزو اطلاعات پایه برنامه است و قابل حذف یا غیرفعال‌کردن نیست.'),
 }
 

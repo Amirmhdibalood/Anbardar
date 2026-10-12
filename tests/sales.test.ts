@@ -24,7 +24,7 @@ describe('sales invoices', () => {
     assert.equal(res.items[0]?.costs?.average, Math.round(((300 + 400) / 5) * 4))
     assert.equal(res.items[0]?.costs?.last, 200 * 4)
     assert.equal(await f.inventory.getQuantity(f.warehouseId, p.id), Q(1))
-    assert.equal(await f.repos.payments.totalForSalesInvoice(res.invoice.id), 1950)
+    assert.equal((await f.repos.money.invoiceSettlements('sales', [res.invoice.id])).get(res.invoice.id)?.settled, 1950)
     assert.deepEqual(await f.inventory.verifyCosts(), [])
   })
 

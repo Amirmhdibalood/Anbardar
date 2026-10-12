@@ -13,6 +13,8 @@ import { nowIso } from '../utils/time'
 import { cleanText } from '../validation/fields'
 import { validateInvoice } from '../validation/entities'
 import { createInventoryService } from './inventoryService'
+import { cancelAutoDocuments, recordInvoicePayment } from './moneyService'
+import { resolvePaidAmount } from './paidAmount'
 
 export interface PurchaseInput {
   /** خالی = تأمین‌کننده سیستمی «متفرقه» */
@@ -24,6 +26,8 @@ export interface PurchaseInput {
   note?: string | null
   /** تخفیف کل فاکتور؛ از مبلغ پرداختی و از بهای لایه‌ها کم می‌شود */
   discount?: number
+  /** مبلغ پرداختی هنگام ثبت؛ پیش‌فرض = کل فاکتور (خرید نقدی). کمتر از کل = نسیه (فقط برای تأمین‌کننده با نام) */
+  paidAmount?: number
   items: InvoiceItemInput[]
 }
 
@@ -94,9 +98,8 @@ export function createPurchaseService(db: SqlExecutor) {
             { kind: 'lot', totalCost: line.lineTotal - line.invoiceDiscountShare, lotDate: invoiceDate },
           )
         }
-        if (prepared.total > 0) {
-          await r.payments.create({ purchaseInvoiceId: prepared.id, amount: prepared.total, paidAt: invoiceDate, note: 'نقدی' })
-        }
+        const paid = resolvePaidAmount(input.paidAmount, prepared.total, supplier.isSystem, supplier.name)
+        await recordInvoicePayment(tx, 'purchase', { id: prepared.id, partyId: supplier.id }, paid, invoiceDate)
         return result
       })
     },
@@ -129,6 +132,7 @@ export function createPurchaseService(db: SqlExecutor) {
           )
         }
         await r.purchaseInvoices.markCancelled(id, why, nowIso())
+        await cancelAutoDocuments(tx, 'purchase', id, 'ابطال فاکتور')
       })
     },
 

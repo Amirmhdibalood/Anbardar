@@ -1,6 +1,7 @@
 import type { SqlExecutor } from '../database/types'
 import { createPurchaseInvoiceRepository, createSalesInvoiceRepository } from './sqlite/invoiceRepository'
 import { SqlitePaymentRepository } from './sqlite/paymentRepository'
+import { SqliteMoneyRepository } from './sqlite/moneyRepository'
 import { SqliteCostRepository } from './sqlite/costRepository'
 import { SqliteExpenseRepository } from './sqlite/expenseRepository'
 import { SqliteReturnsRepository } from './sqlite/returnsRepository'
@@ -9,10 +10,9 @@ import { SqliteSequenceRepository } from './sqlite/sequenceRepository'
 import { SqliteSettingsRepository } from './sqlite/settingsRepository'
 import { SqliteStockRepository } from './sqlite/stockRepository'
 import {
-  SqliteCustomerRepository,
+  SqlitePartyRepository,
   SqliteProductGroupRepository,
   SqliteProductRepository,
-  SqliteSupplierRepository,
   SqliteUnitRepository,
   SqliteWarehouseRepository,
 } from './sqlite/simpleRepositories'
@@ -33,8 +33,10 @@ export function createRepositories(db: SqlExecutor): Repositories {
     productGroups: new SqliteProductGroupRepository(db),
     units: new SqliteUnitRepository(db),
     warehouses: new SqliteWarehouseRepository(db),
-    customers: new SqliteCustomerRepository(db),
-    suppliers: new SqliteSupplierRepository(db),
+    parties: new SqlitePartyRepository(db),
+    customers: new SqlitePartyRepository(db, 'customer'),
+    suppliers: new SqlitePartyRepository(db, 'supplier'),
+    money: new SqliteMoneyRepository(db),
     products: new SqliteProductRepository(db),
     stock: new SqliteStockRepository(db),
     salesInvoices: createSalesInvoiceRepository(db),

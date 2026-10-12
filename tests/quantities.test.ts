@@ -269,7 +269,7 @@ describe('migration 001 -> 002 on a database with data', () => {
     await db.run(`INSERT INTO payments (id, sales_invoice_id, amount, paid_at, ${cols}) VALUES (?, ?, 500, ?, ?, ?, 1)`, [newId(), sale, NOW, NOW, NOW])
 
     const report = await runMigrations(db, MIGRATIONS, snapshots)
-    assert.deepEqual(report.applied, [2, 3, 4, 5])
+    assert.deepEqual(report.applied, [2, 3, 4, 5, 6])
     assert.ok(report.snapshot, 'a safety snapshot was taken first')
     assert.equal(await db.isForeignKeysEnabled(), true)
     assert.deepEqual(await db.all('PRAGMA foreign_key_check'), [])
@@ -304,7 +304,7 @@ describe('migration 001 -> 002 on a database with data', () => {
 
     // Triggerها و ایندکس‌ها بعد از بازسازی سالم‌اند
     const triggers = (await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'trigger'")).map((t) => t.name)
-    for (const t of ['trg_stock_no_negative_insert', 'trg_movements_no_update', 'trg_sales_invoices_immutable', 'trg_purchase_items_no_delete', 'trg_sales_items_whole_units', 'trg_products_unit_locked', 'trg_customers_system_update']) {
+    for (const t of ['trg_stock_no_negative_insert', 'trg_movements_no_update', 'trg_sales_invoices_immutable', 'trg_purchase_items_no_delete', 'trg_sales_items_whole_units', 'trg_products_unit_locked', 'trg_parties_system_update', 'trg_sales_items_only_active']) {
       assert.ok(triggers.includes(t), t)
     }
     await expectAppError(db.run('UPDATE sales_invoices SET total_amount = 5 WHERE id = ?', [sale]), 'immutable')

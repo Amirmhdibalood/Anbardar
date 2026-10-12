@@ -1,11 +1,11 @@
 import type { Product, ProductGroup, ProductGroupInput, ProductInput, Unit, UnitInput, Warehouse, WarehouseInput } from '../../models/catalog'
-import type { Customer, PartyInput, Supplier } from '../../models/party'
-import type { SqlRow } from '../../database/types'
-import type { CustomerRepository, ListOptions, ProductFilter, ProductGroupRepository, ProductRepository, ProductWithStock, SupplierRepository, UnitRepository, WarehouseRepository } from '../types'
+import type { Party, PartyInput, PartyRole } from '../../models/party'
+import type { SqlExecutor, SqlRow, SqlValue } from '../../database/types'
+import type { ListOptions, PartyRepository, ProductFilter, ProductGroupRepository, ProductRepository, ProductWithStock, UnitRepository, WarehouseRepository } from '../types'
 import { EntityRepository } from './entityRepository'
 import { DEFAULT_UNIT_ID } from '../../models/units'
 import { nowIso } from '../../utils/time'
-import { escapeLike, notFound, num, numOrNull, str, strOrNull } from './helpers'
+import { baseFromRow, escapeLike, notFound, num, numOrNull, str, strOrNull } from './helpers'
 
 export class SqliteProductGroupRepository extends EntityRepository<ProductGroup, ProductGroupInput> implements ProductGroupRepository {
   protected readonly table = 'product_groups'
@@ -82,40 +82,66 @@ export class SqliteWarehouseRepository extends EntityRepository<Warehouse, Wareh
   }
 }
 
-function partyColumns(i: PartyInput) {
-  return { name: i.name, phone: i.phone ?? null, address: i.address ?? null, description: i.description ?? null }
+function partyFromRow(r: SqlRow, base: ReturnType<typeof baseFromRow>): Party {
+  return {
+    ...base,
+    name: str(r, 'name'),
+    phone: strOrNull(r, 'phone'),
+    address: strOrNull(r, 'address'),
+    description: strOrNull(r, 'description'),
+    isCustomer: num(r, 'is_customer') === 1,
+    isSupplier: num(r, 'is_supplier') === 1,
+    isSystem: num(r, 'is_system') === 1,
+  }
 }
 
-export class SqliteCustomerRepository extends EntityRepository<Customer, PartyInput> implements CustomerRepository {
-  protected readonly table = 'customers'
-  protected readonly label = 'مشتری'
-  protected fromRow(r: SqlRow): Customer {
-    return {
-      ...this.base(r),
-      name: str(r, 'name'),
-      phone: strOrNull(r, 'phone'),
-      address: strOrNull(r, 'address'),
-      description: strOrNull(r, 'description'),
-      isSystem: num(r, 'is_system') === 1,
-    }
+/**
+ * طرف حساب (جدول parties). با `role` همان رفتار قبلی «مشتریان» یا «تأمین‌کنندگان» را دارد:
+ * فقط طرف‌های همان نقش را می‌بیند و هنگام ساخت همان نقش را می‌گذارد (نقش دیگر دست نمی‌خورد).
+ */
+export class SqlitePartyRepository extends EntityRepository<Party, PartyInput> implements PartyRepository {
+  protected readonly table = 'parties'
+  protected readonly label: string
+  constructor(
+    db: SqlExecutor,
+    private readonly role: PartyRole | null = null,
+  ) {
+    super(db)
+    this.label = role === 'customer' ? 'مشتری' : role === 'supplier' ? 'تأمین‌کننده' : 'طرف حساب'
   }
-  protected columns = partyColumns
-}
-
-export class SqliteSupplierRepository extends EntityRepository<Supplier, PartyInput> implements SupplierRepository {
-  protected readonly table = 'suppliers'
-  protected readonly label = 'تأمین‌کننده'
-  protected fromRow(r: SqlRow): Supplier {
-    return {
-      ...this.base(r),
-      name: str(r, 'name'),
-      phone: strOrNull(r, 'phone'),
-      address: strOrNull(r, 'address'),
-      description: strOrNull(r, 'description'),
-      isSystem: num(r, 'is_system') === 1,
-    }
+  private get roleWhere(): string {
+    return this.role === 'customer' ? 'is_customer = 1' : this.role === 'supplier' ? 'is_supplier = 1' : '1 = 1'
   }
-  protected columns = partyColumns
+  protected fromRow(r: SqlRow): Party {
+    return partyFromRow(r, this.base(r))
+  }
+  protected columns(i: PartyInput): Record<string, SqlValue> {
+    const cols: Record<string, SqlValue> = { name: i.name, phone: i.phone ?? null, address: i.address ?? null, description: i.description ?? null }
+    if (this.role === 'customer') cols['is_customer'] = 1
+    else if (this.role === 'supplier') cols['is_supplier'] = 1
+    else {
+      cols['is_customer'] = i.isCustomer ? 1 : 0
+      cols['is_supplier'] = i.isSupplier ? 1 : 0
+    }
+    return cols
+  }
+  override async getById(id: string): Promise<Party | null> {
+    const row = await this.db.get(`SELECT * FROM parties WHERE id = ? AND ${this.roleWhere}`, [id])
+    return row ? this.fromRow(row) : null
+  }
+  override async list(options: ListOptions = {}): Promise<Party[]> {
+    const rows = await this.db.all(`SELECT * FROM parties WHERE ${this.roleWhere}${options.includeInactive ? '' : ' AND is_active = 1'} ORDER BY name`)
+    return rows.map((r) => this.fromRow(r))
+  }
+  async isUsed(id: string): Promise<boolean> {
+    const row = await this.db.get(
+      `SELECT 1 AS x WHERE EXISTS (SELECT 1 FROM sales_invoices WHERE customer_id = ?)
+         OR EXISTS (SELECT 1 FROM purchase_invoices WHERE supplier_id = ?)
+         OR EXISTS (SELECT 1 FROM money_documents WHERE party_id = ?)`,
+      [id, id, id],
+    )
+    return row !== undefined
+  }
 }
 
 type ProductWriteInput = ProductInput & { code: string }

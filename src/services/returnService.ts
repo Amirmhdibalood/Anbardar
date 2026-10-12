@@ -8,6 +8,7 @@ import { lineGross } from '../utils/quantity'
 import { cleanText } from '../validation/fields'
 import { nowIso } from '../utils/time'
 import { createInventoryService } from './inventoryService'
+import { cancelAutoDocuments, recordReturnRefund } from './moneyService'
 
 const MAX_REASON = 200
 
@@ -111,6 +112,7 @@ export function createReturnService(db: SqlExecutor) {
           )
           await r.returns.insertSaleReturnItem({ ...p, returnId, lineNo: i + 1 })
         }
+        await recordReturnRefund(tx, 'sales', { id: invoice.id, partyId: invoice.customerId }, returnId, docDate)
         return (await r.returns.getSaleReturn(returnId))!
       })
     },
@@ -211,6 +213,7 @@ export function createReturnService(db: SqlExecutor) {
             lineNo: i + 1,
           })
         }
+        await recordReturnRefund(tx, 'purchase', { id: invoice.id, partyId: invoice.supplierId }, returnId, docDate)
         return (await r.returns.getPurchaseReturn(returnId))!
       })
     },
@@ -287,6 +290,7 @@ export function createReturnService(db: SqlExecutor) {
           )
         }
         await r.returns.markSaleReturnCancelled(id, why, nowIso())
+        await cancelAutoDocuments(tx, 'sale_return', id, 'ابطال برگشت')
       })
     },
   }

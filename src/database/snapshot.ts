@@ -95,8 +95,6 @@ const REQUIRED_TABLES = [
   'settings',
   'products',
   'warehouses',
-  'customers',
-  'suppliers',
   'stock_movements',
   'warehouse_stock',
 ] as const
@@ -120,7 +118,9 @@ export function validateDump(raw: unknown, maxSchemaVersion: number): DumpValida
   if (!Array.isArray(d.schema) || typeof d.tables !== 'object' || d.tables === null) {
     return { ok: false, error: 'محتوای فایل پشتیبان ناقص است.' }
   }
-  for (const name of REQUIRED_TABLES) {
+  // از نسخه ۶ مشتری/تأمین‌کننده در parties است و اسناد مالی جدول‌های خودشان را دارند
+  const partyTables = d.schemaVersion >= 6 ? ['parties', 'money_documents', 'settlements'] : ['customers', 'suppliers']
+  for (const name of [...REQUIRED_TABLES, ...partyTables]) {
     if (!Array.isArray(d.tables[name])) return { ok: false, error: `جدول ضروری «${name}» در فایل نیست.` }
   }
   return { ok: true, dump: d as DatabaseDump }
@@ -144,8 +144,10 @@ export async function restoreDump(db: import('./types').Database, dump: Database
         else if (obj.type === 'trigger') await tx.run(`DROP TRIGGER IF EXISTS "${obj.name.replace(/"/g, '""')}"`)
         else if (obj.type === 'view') await tx.run(`DROP VIEW IF EXISTS "${obj.name.replace(/"/g, '""')}"`)
       }
+      // Triggerها بعد از درج داده ساخته می‌شوند؛ وگرنه Triggerهای «فقط سند فعال» درج ردیف‌های فاکتورِ ابطال‌شده را رد می‌کنند
+      const isTrigger = (sql: string) => /^\s*CREATE\s+(TEMP\s+|TEMPORARY\s+)?TRIGGER\b/i.test(sql)
       for (const sql of dump.schema) {
-        if (sql.trim()) await tx.run(sql)
+        if (sql.trim() && !isTrigger(sql)) await tx.run(sql)
       }
       for (const [table, rows] of Object.entries(dump.tables)) {
         if (!rows.length) continue
@@ -162,6 +164,9 @@ export async function restoreDump(db: import('./types').Database, dump: Database
             }),
           )
         }
+      }
+      for (const sql of dump.schema) {
+        if (sql.trim() && isTrigger(sql)) await tx.run(sql)
       }
     })
   } finally {

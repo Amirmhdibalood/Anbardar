@@ -13,6 +13,8 @@ import { nowIso } from '../utils/time'
 import { cleanText } from '../validation/fields'
 import { validateInvoice } from '../validation/entities'
 import { createInventoryService } from './inventoryService'
+import { cancelAutoDocuments, recordInvoicePayment } from './moneyService'
+import { resolvePaidAmount } from './paidAmount'
 import type { InvoiceListFilter } from './purchaseService'
 
 export interface SaleInput {
@@ -24,6 +26,8 @@ export interface SaleInput {
   note?: string | null
   /** تخفیف کل فاکتور؛ از مبلغ دریافتی کم می‌شود */
   discount?: number
+  /** مبلغ دریافتی هنگام ثبت؛ پیش‌فرض = کل فاکتور (فروش نقدی). کمتر از کل = نسیه (فقط برای مشتری با نام) */
+  paidAmount?: number
   items: InvoiceItemInput[]
 }
 
@@ -89,9 +93,8 @@ export function createSaleService(db: SqlExecutor) {
         for (let i = 0; i < prepared.lines.length; i++) prepared.lines[i]!.costs = lineCosts[i]!
 
         const result = await r.salesInvoices.insertPrepared({ ...clean, invoiceDate }, prepared)
-        if (prepared.total > 0) {
-          await r.payments.create({ salesInvoiceId: prepared.id, amount: prepared.total, paidAt: invoiceDate, note: 'نقدی' })
-        }
+        const paid = resolvePaidAmount(input.paidAmount, prepared.total, customer.isSystem, customer.name)
+        await recordInvoicePayment(tx, 'sales', { id: prepared.id, partyId: customer.id }, paid, invoiceDate)
         return result
       })
     },
@@ -104,6 +107,9 @@ export function createSaleService(db: SqlExecutor) {
         const invoice = await r.salesInvoices.getById(id)
         if (!invoice) throw new AppError('not_found', 'فاکتور فروش پیدا نشد.')
         if (invoice.status === 'cancelled') throw new AppError('immutable', 'این فاکتور قبلاً ابطال شده است.')
+        if (await tx.get("SELECT 1 AS x FROM sale_returns WHERE sales_invoice_id = ? AND status = 'active'", [id])) {
+          throw new AppError('protected', 'برای این فاکتور برگشت فروش ثبت شده است. اول برگشت را ابطال کنید، بعد فاکتور را.')
+        }
         const inventory = createInventoryService(tx)
         for (const item of await r.salesInvoices.getItems(id)) {
           const [original] = await r.stock.listMovements({ documentLineId: item.id })
@@ -123,6 +129,8 @@ export function createSaleService(db: SqlExecutor) {
           )
         }
         await r.salesInvoices.markCancelled(id, why, nowIso())
+        // دریافت خودکار همراه فاکتور هم باطل می‌شود؛ دریافت دستی به «علی‌الحساب» برمی‌گردد
+        await cancelAutoDocuments(tx, 'sale', id, 'ابطال فاکتور')
       })
     },
 

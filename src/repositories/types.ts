@@ -1,8 +1,9 @@
 import type { Money } from '../models/common'
-import type { Customer, PartyInput, Supplier } from '../models/party'
+import type { Party, PartyInput } from '../models/party'
 import type { Product, ProductGroup, ProductGroupInput, ProductInput, Unit, UnitInput, Warehouse, WarehouseInput } from '../models/catalog'
 import type { InvoiceFilter, InvoiceInput, InvoiceItem, PurchaseInvoice, SalesInvoice } from '../models/invoice'
 import type { Payment, PaymentInput } from '../models/payment'
+import type { MoneyRepository } from './sqlite/moneyRepository'
 import type { AppSettings, CostMethod } from '../models/settings'
 import type { MovementCosts, StockInconsistency, StockLevel, StockMovement, StockMovementInput } from '../models/stock'
 import type { CostInconsistency, CostLot, LotAllocation } from '../models/costing'
@@ -47,8 +48,11 @@ export interface WarehouseRepository extends CrudRepository<Warehouse, Warehouse
   /** تعداد کالاهایی که در این انبار موجودی غیرصفر دارند */
   stockedProductCount(id: string): Promise<number>
 }
-export type CustomerRepository = CrudRepository<Customer, PartyInput>
-export type SupplierRepository = CrudRepository<Supplier, PartyInput>
+export interface PartyRepository extends CrudRepository<Party, PartyInput> {
+  isUsed(id: string): Promise<boolean>
+}
+export type CustomerRepository = PartyRepository
+export type SupplierRepository = PartyRepository
 
 export interface ProductFilter extends ListOptions {
   groupId?: string
@@ -80,7 +84,7 @@ export interface SequenceRepository {
   /** عدد بعدیِ شمارنده (باید داخل تراکنش صدا زده شود؛ خودش هم SAVEPOINT می‌سازد) */
   next(name: SequenceName): Promise<number>
 }
-export type SequenceName = 'sales_invoice' | 'purchase_invoice' | 'product_code' | 'sale_return' | 'purchase_return' | 'transfer'
+export type SequenceName = 'sales_invoice' | 'purchase_invoice' | 'product_code' | 'sale_return' | 'purchase_return' | 'transfer' | 'receipt' | 'payment' | 'opening'
 
 export interface StockFilter {
   warehouseId?: string
@@ -344,8 +348,10 @@ export interface Repositories {
   productGroups: ProductGroupRepository
   units: UnitRepository
   warehouses: WarehouseRepository
+  parties: PartyRepository
   customers: CustomerRepository
   suppliers: SupplierRepository
+  money: MoneyRepository
   products: ProductRepository
   stock: StockRepository
   salesInvoices: SalesInvoiceRepository

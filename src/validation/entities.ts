@@ -38,14 +38,15 @@ export function validateWarehouse(input: WarehouseInput): WarehouseInput {
   return { name, description }
 }
 
-export function validateParty(input: PartyInput, label: 'مشتری' | 'تأمین‌کننده'): PartyInput {
+export function validateParty(input: PartyInput, label: string, requireRole = false): PartyInput {
   const f = new Fields()
   const name = requiredName(f, 'name', `نام ${label}`, input.name)
   const phone = optionalPhone(f, 'phone', input.phone)
   const address = optionalText(f, 'address', 'آدرس', input.address)
   const description = optionalText(f, 'description', 'توضیحات', input.description)
+  if (requireRole && !input.isCustomer && !input.isSupplier) f.fail('role', 'حداقل یکی از «مشتری» یا «تأمین‌کننده» را انتخاب کنید.')
   f.done()
-  return { name, phone, address, description }
+  return { name, phone, address, description, isCustomer: !!input.isCustomer, isSupplier: !!input.isSupplier }
 }
 
 export function validateProduct(input: ProductInput): ProductInput {

@@ -27,7 +27,7 @@ describe('migration', () => {
     assert.equal(await db.isForeignKeysEnabled(), true)
     const tables = (await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")).map((t) => t.name)
     for (const t of [
-      'products', 'product_groups', 'units', 'warehouses', 'warehouse_stock', 'stock_movements', 'customers', 'suppliers',
+      'products', 'product_groups', 'units', 'warehouses', 'warehouse_stock', 'stock_movements', 'parties', 'money_documents', 'settlements',
       'purchase_invoices', 'purchase_items', 'sales_invoices', 'sales_items', 'payments', 'settings', 'sequences', 'schema_migrations',
     ]) assert.ok(tables.includes(t), `table ${t}`)
   })
@@ -116,7 +116,7 @@ describe('schema conventions', () => {
   it('every business table has the standard columns, and no currency column exists', async () => {
     const f = await setup()
     const business = [
-      'products', 'product_groups', 'warehouses', 'warehouse_stock', 'stock_movements', 'customers', 'suppliers',
+      'products', 'product_groups', 'warehouses', 'warehouse_stock', 'stock_movements', 'parties', 'money_documents', 'settlements',
       'purchase_invoices', 'purchase_items', 'sales_invoices', 'sales_items', 'payments', 'cost_lots', 'lot_allocations',
     ]
     for (const t of business) {

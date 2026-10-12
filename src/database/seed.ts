@@ -33,7 +33,11 @@ export async function seedIfNeeded(db: Database): Promise<boolean> {
     // اگر قبلاً (مثلاً در اجرای نیمه‌کاره قدیمی) ساخته شده باشند دوباره ساخته نمی‌شوند
     const warehouse = (await repos.warehouses.list({ includeInactive: true })).find((w) => w.name === SEED_NAMES.warehouse)
     const group = (await repos.productGroups.list({ includeInactive: true })).find((g) => g.name === SEED_NAMES.productGroup)
-    const existingCustomer = await tx.get<{ id: string }>('SELECT id FROM customers WHERE is_system = 1')
+    // از Migration 006 مشتری در parties است؛ برای دیتابیس‌های قدیمی‌تر (تست Migrationها) جدول customers
+    const hasParties = (await tx.get("SELECT 1 AS x FROM sqlite_master WHERE type = 'table' AND name = 'parties'")) !== undefined
+    const existingCustomer = await tx.get<{ id: string }>(
+      hasParties ? 'SELECT id FROM parties WHERE is_system = 1 AND is_customer = 1' : 'SELECT id FROM customers WHERE is_system = 1',
+    )
 
     const warehouseId = warehouse?.id ?? (await repos.warehouses.create({ name: SEED_NAMES.warehouse })).id
     // درج مستقیم با ستون‌های پایه تا Seed به ستون‌های اختیاری نسخه‌های بعدی وابسته نباشد
@@ -46,7 +50,9 @@ export async function seedIfNeeded(db: Database): Promise<boolean> {
     if (!customerId) {
       customerId = newId()
       await tx.run(
-        'INSERT INTO customers (id, name, is_system, created_at, updated_at, is_active, created_by) VALUES (?, ?, 1, ?, ?, 1, NULL)',
+        hasParties
+          ? 'INSERT INTO parties (id, name, is_customer, is_supplier, is_system, created_at, updated_at, is_active, created_by) VALUES (?, ?, 1, 0, 1, ?, ?, 1, NULL)'
+          : 'INSERT INTO customers (id, name, is_system, created_at, updated_at, is_active, created_by) VALUES (?, ?, 1, ?, ?, 1, NULL)',
         [customerId, SEED_NAMES.customer, now, now],
       )
     }
