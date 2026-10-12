@@ -1,0 +1,66 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 14.5px;
+  border: 1px solid transparent;
+  transition: transform 0.1s, background 0.15s, opacity 0.15s;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.block {
+  width: 100%;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.secondary {
+  background: var(--card);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.danger {
+  background: var(--error-soft);
+  color: var(--error);
+  border-color: transparent;
+}
+
+.ghost {
+  color: var(--accent-text);
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.iconButton {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+  color: var(--text);
+}
+
+.small {
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+}

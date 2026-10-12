@@ -1,0 +1,21 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tip {
+  padding: 14px 16px;
+}
+
+.tip h2 {
+  font-size: 14.5px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.tip p {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.95;
+}

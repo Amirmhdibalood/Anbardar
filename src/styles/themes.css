@@ -1,0 +1,45 @@
+/* رنگ‌ها فقط از طریق متغیرهای CSS استفاده می‌شوند؛ تغییر تم = تغییر data-theme روی <html> */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0f0f14;
+  --card: #181822;
+  --card-hover: #1f1f2c;
+  --border: #2a2a38;
+  --accent: #8b5cf6;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(139, 92, 246, 0.16);
+  --accent-text: #c4b0ff;
+  --text: #ededf4;
+  --muted: #9494a8;
+  --error: #f0566a;
+  --error-soft: rgba(240, 86, 106, 0.14);
+  --warning: #f5a524;
+  --warning-soft: rgba(245, 165, 36, 0.14);
+  --success: #34d399;
+  --success-soft: rgba(52, 211, 153, 0.12);
+  --overlay: rgba(0, 0, 0, 0.6);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f6fa;
+  --card: #ffffff;
+  --card-hover: #f0eff7;
+  --border: #e3e3ee;
+  --accent: #8b5cf6;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(139, 92, 246, 0.12);
+  --accent-text: #6d28d9;
+  --text: #17171f;
+  --muted: #666679;
+  --error: #d6334a;
+  --error-soft: rgba(214, 51, 74, 0.1);
+  --warning: #a8670a;
+  --warning-soft: rgba(245, 165, 36, 0.16);
+  --success: #047857;
+  --success-soft: rgba(5, 150, 105, 0.12);
+  --overlay: rgba(23, 23, 31, 0.45);
+  --shadow: 0 10px 30px rgba(40, 30, 80, 0.14);
+}

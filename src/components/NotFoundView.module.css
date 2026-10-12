@@ -1,0 +1,15 @@
+.root {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+}
+
+.button {
+  margin-top: 10px;
+  padding: 12px 28px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+}

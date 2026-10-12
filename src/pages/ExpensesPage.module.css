@@ -1,0 +1,127 @@
+.page {
+  display: grid;
+  gap: 12px;
+}
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0 12px;
+  color: var(--muted);
+}
+.search input {
+  border: none;
+  background: transparent;
+  flex: 1;
+  padding: 12px 0;
+  color: var(--text);
+  font: inherit;
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.list {
+  list-style: none;
+  background: var(--card);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  text-align: right;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.row + .row,
+.list li + li {
+  border-top: 1px solid var(--border);
+}
+.row:active {
+  background: var(--card-hover);
+}
+.main {
+  flex: 1;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.main strong {
+  font-size: 14.5px;
+}
+.main span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: left;
+  display: grid;
+  gap: 4px;
+  justify-items: end;
+}
+.cancelled {
+  opacity: 0.55;
+}
+.cancelled .amount strong {
+  text-decoration: line-through;
+}
+.skeleton {
+  height: 180px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, var(--card), var(--card-hover), var(--card));
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.form {
+  display: grid;
+  gap: 12px;
+  padding: 4px 0 8px;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.actions > * {
+  flex: 1;
+}
+.cancelBox {
+  background: var(--error-soft);
+  color: var(--error);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 8px;
+}
+.detail {
+  display: grid;
+  gap: 8px;
+  font-size: 14px;
+}
+.detail dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.detail dd {
+  margin: 0 0 8px;
+  font-weight: 600;
+}

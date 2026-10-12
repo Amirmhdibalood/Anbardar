@@ -1,0 +1,10 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.error {
+  color: var(--error);
+  font-size: 13.5px;
+}

@@ -1,0 +1,26 @@
+.tabs {
+  display: flex;
+  padding: 4px;
+  margin-bottom: 12px;
+  gap: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.tab {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.on {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}

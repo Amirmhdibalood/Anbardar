@@ -1,0 +1,27 @@
+.root {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 42px;
+  border-radius: calc(var(--radius) - 4px);
+  font-size: 13.5px;
+  color: var(--muted);
+  transition: background 0.15s, color 0.15s;
+}
+
+.selected {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+}

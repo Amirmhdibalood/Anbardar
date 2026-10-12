@@ -1,0 +1,15 @@
+.root {
+  margin-top: 22px;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 700;
+}

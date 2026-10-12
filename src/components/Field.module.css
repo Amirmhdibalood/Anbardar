@@ -1,0 +1,167 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.required {
+  color: var(--error);
+}
+
+.control {
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.control::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+.control:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.control:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.invalid,
+.invalid:focus {
+  border-color: var(--error);
+  box-shadow: 0 0 0 3px var(--error-soft);
+}
+
+.textarea {
+  min-height: 84px;
+  resize: vertical;
+  line-height: 1.8;
+}
+
+.numeric {
+  text-align: right;
+  direction: ltr;
+  padding-inline-end: 62px;
+}
+
+.numeric::placeholder {
+  direction: rtl;
+  text-align: right;
+}
+
+.suffixWrap {
+  position: relative;
+}
+
+.suffix {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 14px;
+  display: flex;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.selectWrap {
+  position: relative;
+}
+
+.select {
+  appearance: none;
+  padding-inline-end: 38px;
+}
+
+.selectArrow {
+  position: absolute;
+  inset-inline-end: 14px;
+  top: 50%;
+  transform: translateY(-50%) rotate(-90deg);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--error);
+  line-height: 1.7;
+}
+
+.error svg {
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 2px;
+}
+
+.switchText {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.switchLabel {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.switch {
+  position: relative;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 0.18s;
+}
+
+.switchOn {
+  background: var(--accent);
+}
+
+.knob {
+  position: absolute;
+  top: 3px;
+  inset-inline-start: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s;
+}
+
+.switchOn .knob {
+  transform: translateX(-20px);
+}

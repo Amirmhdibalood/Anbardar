@@ -1,0 +1,49 @@
+.wrap {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+}
+.empty {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.legend {
+  list-style: none;
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.legLabel {
+  flex: 1;
+  color: var(--text);
+}
+.legAmount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.legAmount em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 12px;
+}

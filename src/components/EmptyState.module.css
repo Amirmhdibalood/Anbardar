@@ -1,0 +1,50 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 36px 24px;
+}
+
+.compact {
+  padding: 22px 16px;
+}
+
+.icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  margin-bottom: 6px;
+}
+
+.compact .icon {
+  width: 48px;
+  height: 48px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.description {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.9;
+  max-width: 280px;
+}
+
+.badge {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}

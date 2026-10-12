@@ -1,0 +1,45 @@
+.message {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  line-height: 1.9;
+}
+
+.message svg {
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.warning {
+  background: var(--warning-soft);
+  color: var(--text);
+}
+
+.warning svg {
+  color: var(--warning);
+}
+
+.danger {
+  background: var(--error-soft);
+  color: var(--text);
+}
+
+.danger svg {
+  color: var(--error);
+}
+
+.error {
+  margin-top: 10px;
+  color: var(--error);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}

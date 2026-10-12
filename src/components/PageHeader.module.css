@@ -1,0 +1,32 @@
+.root {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  min-height: 40px;
+}
+
+.title {
+  flex: 1;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.back {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  border: 1px solid var(--border);
+  display: grid;
+  place-items: center;
+}
+
+.title {
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}

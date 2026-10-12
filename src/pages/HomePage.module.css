@@ -1,0 +1,106 @@
+.header {
+  margin-bottom: 18px;
+}
+
+.date {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.hello {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 92px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--accent);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent-text);
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.stat {
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.statWide {
+  min-width: 0;
+}
+
+.statLabel {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.statValue {
+  font-size: 18px;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.unit {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.warn {
+  color: var(--warning);
+}
+
+.statLink {
+  display: block;
+  min-width: 0;
+}
+
+.statLink > * {
+  height: 100%;
+}
+
+.backupBanner {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-md, 14px);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.backupBanner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--accent);
+}

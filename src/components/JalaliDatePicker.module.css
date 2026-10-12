@@ -1,0 +1,97 @@
+.trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  color: var(--text);
+  text-align: start;
+}
+
+.trigger svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.month {
+  font-size: 16px;
+}
+
+.nav {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  text-align: center;
+}
+
+.weekday {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.friday {
+  color: var(--error);
+}
+
+.day {
+  aspect-ratio: 1;
+  max-height: 46px;
+  border-radius: 12px;
+  font-size: 15px;
+  color: var(--text);
+  display: grid;
+  place-items: center;
+}
+
+.day:hover {
+  background: var(--card-hover);
+}
+
+.today {
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.future {
+  color: var(--muted);
+}
+
+.selected,
+.selected:hover {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
