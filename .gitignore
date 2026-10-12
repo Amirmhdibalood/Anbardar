@@ -9,3 +9,8 @@ android/app/src/main/assets/public
 android/capacitor-cordova-android-plugins
 .DS_Store
 tmp/
+*.jks
+*.keystore
+.env*
+signing*.txt
+*.apk
