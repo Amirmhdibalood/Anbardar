@@ -222,8 +222,8 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
         </Field>
       </Card>
 
-      <Card className={styles.card} data-testid="sub-units">
-        <div className={styles.subHead}>
+      <Card className={styles.card}>
+        <div className={styles.subHead} data-testid="sub-units">
           <strong>واحدهای فرعی</strong>
           <span>مثلاً «کارتن = ۲۴ {unit?.name ?? 'واحد'}». موجودی همیشه به {unit?.name ?? 'واحد اصلی'} نگه داشته می‌شود.</span>
         </div>
@@ -273,7 +273,7 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
             className={styles.subAdd}
             onClick={() => setValues((v) => ({ ...v, subUnits: [...(v.subUnits ?? []), { key: `s${Date.now().toString(36)}${(v.subUnits ?? []).length}`, unitId: '', factor: '' }] }))}
           >
-            + افزودن واحد فرعی
+            + تعریف واحد فرعی (مثل کارتن)
           </button>
         )}
       </Card>
