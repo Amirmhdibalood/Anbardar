@@ -244,3 +244,10 @@ Design note: `docs/stage2-units-landed-cheques.md`. Migration 007 (snapshot take
 - Tests:
   - `tests/stage2.test.ts`: rounding (100,000 / 3), allocation, units, price mode, landed, cheques, migration, backup round-trip, form.
   - `scripts/e2e-stage2.mjs` (50 checks, both themes), added to `walkthrough.sh`.
+
+## v1.3.0 (versionCode 8): stage 3
+- ✅ مرکز اعلان داخل برنامه (زنگ + شمارنده، چک‌های سررسید/گذشته، کم‌موجودی/تمام‌شده، خوانده/همه خوانده، ماندگار)
+- ✅ پیشنهاد پشتیبان هنگام خروج (در صورت تغییر) + هشدار پشتیبان اولین اجرا
+- ✅ ثبت یک‌باره: قفل دکمه + کلید درخواست + ایندکس UNIQUE (Migration 008)
+- ✅ چاپ فاکتور (نمای چاپی) + PDF با برگه اشتراک اندروید
+- ✅ راهنمای کوچک (؟) در نوع قیمت، هزینه جانبی، چک، اعلان‌ها

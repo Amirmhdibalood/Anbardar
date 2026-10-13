@@ -66,3 +66,11 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
 - `InvoiceItemInput.quantity` is in the line unit; `InvoiceItem.quantity` is always base (`unitQuantity` / `unitFactor` / `unitId` hold the entered unit).
 - Cheques: `services/chequeService.ts` (clear / bounce / spend, list / dueUntil), plus `moneyService.create({ method: 'cheque', cheque })`. UI: `components/ChequeActions.tsx` and `pages/ChequesPage.tsx`.
 - DB triggers referencing the items tables must be dropped/recreated around a table rebuild (sqlite rename check).
+
+## v1.3.0: stage 3 (notifications, backup safety, idempotent submit, PDF/print)
+- Notifications: `services/notificationService.ts` computes items on demand. Ids are `cheque:<id>:overdue|today|soon` and `stock:<pid>:out|low`, so a bucket change makes the item unread again. Read ids live in setting `notifications_read` and are pruned to live ids. UI pieces are `components/NotificationBell.tsx` + `TopTools.tsx` (bell next to the lamp) and `pages/NotificationsPage.tsx`. `pingNotifications()` refreshes the badge.
+- Backup: `services/backupChanges.ts` provides `hasChangesSinceBackup`. When there has never been a backup, the baseline is MIN(schema_migrations.applied_at) + 10s, so seed data is ignored. The exit sheet lives in RootShell. The first-run Home card is controlled by `backup_intro_seen`.
+- Idempotency: migration 008 adds `request_id` with a partial UNIQUE index and a lock trigger. `services/requestKey.ts` has find/claim/newRequestId. Forms use a ref lock plus `useRef(newRequestId())`.
+- PDF: `utils/pdf.ts` (minimal PDF 1.4, JPEG pages) and `services/invoiceExport.ts` (canvas RTL drawing; Android Filesystem + Share; web download). The print page is `pages/InvoicePrintPage.tsx` with `@media print`.
+- `HelpTip` (?) component opens a Sheet.
+- e2e: `scripts/e2e-stage3.mjs`.
