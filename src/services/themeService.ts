@@ -38,10 +38,13 @@ export function watchSystemTheme(onChange: () => void): () => void {
 /** جابه‌جایی نرم بین تم‌ها (View Transitions اگر باشد؛ وگرنه transition موقت رنگ‌ها) */
 export function withThemeTransition(change: () => void): void {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+  type VT = { ready: Promise<void>; finished: Promise<void>; updateCallbackDone: Promise<void> }
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => VT }
   if (reduce) return change()
   if (doc.startViewTransition) {
-    doc.startViewTransition(change)
+    const t = doc.startViewTransition(change)
+    // دو بار زدن پشت سر هم transition قبلی را رد می‌کند (AbortError)؛ بی‌اهمیت است
+    for (const p of [t.ready, t.finished, t.updateCallbackDone]) p?.catch(() => {})
     return
   }
   const root = document.documentElement
