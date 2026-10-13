@@ -117,3 +117,21 @@ describe('stage 3: idempotent submit', () => {
     await assert.rejects(f.db.run('UPDATE purchase_invoices SET request_id = ? WHERE id = ?', ['other', a.invoice.id]))
   })
 })
+
+describe('stage 3: minimal PDF writer', () => {
+  it('writes a valid PDF 1.4 skeleton with a correct xref table', async () => {
+    const { buildPdf } = await import('../src/utils/pdf')
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
+    const bytes = buildPdf([{ jpeg, width: 2, height: 3 }, { jpeg, width: 2, height: 3 }])
+    const text = Buffer.from(bytes).toString('latin1')
+    assert.ok(text.startsWith('%PDF-1.4'))
+    assert.ok(text.trimEnd().endsWith('%%EOF'))
+    assert.match(text, /\/Count 2/)
+    const xref = Number(/startxref\n(\d+)/.exec(text)![1])
+    assert.equal(text.slice(xref, xref + 4), 'xref')
+    const offsets = [...text.slice(xref).matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]))
+    assert.equal(offsets.length, 8)
+    offsets.forEach((o, i) => assert.equal(text.slice(o, o + `${i + 1} 0 obj`.length), `${i + 1} 0 obj`))
+    assert.throws(() => buildPdf([]))
+  })
+})

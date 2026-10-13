@@ -64,6 +64,8 @@ const routes: RouteObject[] = [
           { path: 'purchases/:id/return', ...page(() => import('../pages/NewPurchaseReturnPage')) },
           { path: 'money/new', ...page(() => import('../pages/MoneyFormPage')) },
           { path: 'transfers/new', ...page(() => import('../pages/NewTransferPage')) },
+          { path: 'sales/:id/print', ...page(() => import('../pages/InvoicePrintPage')) },
+          { path: 'purchases/:id/print', ...page(() => import('../pages/InvoicePrintPage')) },
         ],
       },
     ],

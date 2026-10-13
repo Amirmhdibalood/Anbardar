@@ -151,6 +151,11 @@ export default function PurchaseDetailPage() {
         </div>
       )}
       <InvoicePaymentCard kind="purchase" invoiceId={invoice.id} partyId={invoice.supplierId} systemParty={!!supplier?.isSystem} cancelled={cancelled} />
+      <div className={styles.actionStack}>
+        <ButtonLink variant="secondary" icon="printer" block to={`/purchases/${id}/print`}>
+          چاپ / PDF فاکتور
+        </ButtonLink>
+      </div>
       {!cancelled && (
         <div className={styles.actionStack}>
           <ButtonLink variant="secondary" icon="plus" block to={`/purchases/${id}/return`}>
