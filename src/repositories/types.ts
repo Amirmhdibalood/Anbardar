@@ -290,6 +290,9 @@ export interface ReturnsRepository {
     lineTotal: number
     costs: import('../models/stock').MovementCosts
     lineNo: number
+    unitId?: string | null
+    unitFactor?: number
+    unitQuantity?: number
   }): Promise<void>
   getSaleReturn(id: string): Promise<import('../models/returns').SaleReturn | null>
   listSaleReturns(limit?: number): Promise<import('../models/returns').SaleReturn[]>
@@ -316,6 +319,9 @@ export interface ReturnsRepository {
     lineTotal: number
     costs: import('../models/stock').MovementCosts
     lineNo: number
+    unitId?: string | null
+    unitFactor?: number
+    unitQuantity?: number
   }): Promise<void>
   getPurchaseReturn(id: string): Promise<import('../models/returns').PurchaseReturn | null>
   listPurchaseReturns(limit?: number): Promise<import('../models/returns').PurchaseReturn[]>
@@ -338,6 +344,9 @@ export interface ReturnsRepository {
     quantity: number
     costs: import('../models/stock').MovementCosts
     lineNo: number
+    unitId?: string | null
+    unitFactor?: number
+    unitQuantity?: number
   }): Promise<void>
   getTransfer(id: string): Promise<import('../models/returns').WarehouseTransfer | null>
   listTransfers(limit?: number): Promise<import('../models/returns').WarehouseTransfer[]>

@@ -109,7 +109,7 @@ WHEN EXISTS (SELECT 1 FROM products p WHERE p.id = NEW.product_id AND p.unit_id 
   OR (NEW.factor % 1000 <> 0 AND EXISTS (SELECT 1 FROM products p JOIN units u ON u.id = p.unit_id WHERE p.id = NEW.product_id AND u.allows_fraction = 0))
 BEGIN SELECT RAISE(ABORT, 'unit_mismatch'); END`,
     `CREATE TRIGGER trg_product_units_no_delete BEFORE DELETE ON product_units
-BEGIN SELECT RAISE(ABORT, 'unit_locked'); END`,
+BEGIN SELECT RAISE(ABORT, 'sub_unit_locked'); END`,
 
     // ---- ردیف فاکتورها (Trigger کالا که به این جدول‌ها اشاره دارد موقتاً حذف و بعد بازسازی می‌شود)
     'DROP TRIGGER IF EXISTS trg_products_unit_locked',
@@ -127,7 +127,7 @@ WHEN NEW.unit_id IS NOT OLD.unit_id OR NEW.product_id IS NOT OLD.product_id
   OR (NEW.factor IS NOT OLD.factor AND (
     EXISTS (SELECT 1 FROM sales_items WHERE product_id = OLD.product_id AND unit_id = OLD.unit_id)
     OR EXISTS (SELECT 1 FROM purchase_items WHERE product_id = OLD.product_id AND unit_id = OLD.unit_id)))
-BEGIN SELECT RAISE(ABORT, 'unit_locked'); END`,
+BEGIN SELECT RAISE(ABORT, 'sub_unit_locked'); END`,
 
     // ---- هزینه‌های جانبی خرید
     `ALTER TABLE purchase_invoices ADD COLUMN landed_total INTEGER NOT NULL DEFAULT 0 CHECK (landed_total >= 0)`,

@@ -154,12 +154,7 @@ export function createCatalogService(db: SqlExecutor) {
           if (code !== existing.code && (await r.products.getByCode(code))) throw duplicateCode()
           const updated = await r.products.update(id, { ...clean, code })
           if (input.subUnits) {
-            try {
-              await r.products.syncSubUnits(id, await validateSubUnits(r, updated.unitId, updated.unitAllowsFraction, input.subUnits))
-            } catch (e) {
-              if (e instanceof Error && /unit_locked/.test(e.message)) throw new ValidationError({ subUnits: 'ضریب واحدی که در فاکتور استفاده شده قابل تغییر نیست؛ آن را حذف کنید و واحد دیگری بسازید.' })
-              throw e
-            }
+            await r.products.syncSubUnits(id, await validateSubUnits(r, updated.unitId, updated.unitAllowsFraction, input.subUnits))
             return (await r.products.getById(id)) ?? updated
           }
           return updated

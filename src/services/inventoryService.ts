@@ -25,6 +25,8 @@ import { nowIso } from '../utils/time'
 import { mulDivRound } from '../utils/money'
 import { validateMovement } from '../validation/entities'
 import { createCostEngine } from './costing'
+import { factorFor } from './lineUnits'
+import { toBaseQuantity } from '../utils/invoiceMath'
 
 /** برای این نوع حرکت‌ها، کالا و انبار باید فعال باشند (ابطال/برگشت روی موارد غیرفعال هم مجاز است) */
 const ACTIVE_REQUIRED = new Set(['purchase', 'sale', 'transfer_in', 'transfer_out', 'adjustment', 'opening', 'shortage', 'waste', 'sale_return', 'purchase_return'])
@@ -229,8 +231,13 @@ export interface AdjustStockInput {
   kind: AdjustKind
   /** count/opening: موجودی جدید؛ shortage/waste: مقدار کم‌شده (هزارم واحد) */
   quantity: Quantity
-  /** فقط موجودی اولیه: بهای یک واحد به تومان */
+  /** فقط موجودی اولیه: بهای یک واحد (واحد ردیف) به تومان */
   unitCost?: number
+  /** فقط موجودی اولیه: واحد ورود (واحد فرعی کالا)؛ quantity و unitCost به همین واحدند */
+  unitId?: string | null
+  /** فقط موجودی اولیه: «total» یعنی totalCost بهای کل مقدار اضافه‌شده است (دقیق، بدون گرد کردن) */
+  priceMode?: 'unit' | 'total'
+  totalCost?: number
   note?: string | null
 }
 
@@ -282,7 +289,11 @@ export function createStockService(db: SqlExecutor) {
       if (!Number.isSafeInteger(input.quantity) || input.quantity < minimum || input.quantity > MAX_QUANTITY) {
         throw new ValidationError({ quantity: minimum === 0 ? `${label} باید صفر یا بیشتر و در محدوده مجاز باشد.` : `${label} را بیشتر از صفر وارد کنید.` })
       }
-      if (kind === 'opening' && (input.unitCost === undefined || !Number.isSafeInteger(input.unitCost) || input.unitCost < 0 || input.unitCost > MAX_UNIT_PRICE)) {
+      const totalMode = kind === 'opening' && input.priceMode === 'total'
+      if (totalMode && (input.totalCost === undefined || !Number.isSafeInteger(input.totalCost) || input.totalCost < 0 || input.totalCost > MAX_AMOUNT)) {
+        throw new ValidationError({ totalCost: 'مبلغ کل را وارد کنید (عدد صحیح تومان؛ اگر رایگان بوده ۰).' })
+      }
+      if (kind === 'opening' && !totalMode && (input.unitCost === undefined || !Number.isSafeInteger(input.unitCost) || input.unitCost < 0 || input.unitCost > MAX_UNIT_PRICE)) {
         throw new ValidationError({ unitCost: 'بهای هر واحد را وارد کنید (عدد صحیح تومان؛ اگر رایگان بوده ۰).' })
       }
       const note = cleanText(input.note)
@@ -291,6 +302,22 @@ export function createStockService(db: SqlExecutor) {
       return db.transaction(async (tx) => {
         const inv = createInventoryService(tx)
         const current = await inv.getQuantity(input.warehouseId, input.productId)
+        // واحد فرعی فقط در موجودی اولیه: مقدار جدید به واحد ردیف → واحد پایه
+        let factor = 1000
+        let quantity = input.quantity
+        if (kind === 'opening' && input.unitId) {
+          const product = await createRepositories(tx).products.getById(input.productId)
+          if (!product) throw new ValidationError({ productId: 'کالا پیدا نشد.' })
+          const f = factorFor(product, input.unitId)
+          if (f === null) throw new ValidationError({ unitId: 'این واحد برای کالا تعریف نشده است.' })
+          const sub = product.subUnits?.find((u) => u.unitId === input.unitId)
+          if (sub && !sub.allowsFraction && !isWholeQuantity(input.quantity)) throw new ValidationError({ quantity: `واحد «${sub.unitName}» اعشار ندارد.` })
+          const b = toBaseQuantity(input.quantity, f)
+          if (b === null || b > MAX_QUANTITY) throw new ValidationError({ quantity: 'مقدار به واحد اصلی بیش از سه رقم اعشار یا خارج از محدوده است.' })
+          if (!product.unitAllowsFraction && !isWholeQuantity(b)) throw new ValidationError({ quantity: `مقدار به واحد «${product.unitName}» عدد صحیح نمی‌شود.` })
+          factor = f
+          quantity = b
+        }
         const base = { productId: input.productId, warehouseId: input.warehouseId, note: note || null }
         if (kind === 'shortage' || kind === 'waste') {
           if (input.quantity > current) {
@@ -298,11 +325,12 @@ export function createStockService(db: SqlExecutor) {
           }
           return inv.applyMovement({ ...base, quantityDelta: -input.quantity, movementType: kind })
         }
-        const delta = input.quantity - current
+        const delta = quantity - current
         if (delta === 0) throw new ValidationError({ quantity: 'موجودی جدید با موجودی فعلی یکی است؛ تغییری ثبت نشد.' })
         if (kind === 'opening') {
           if (delta < 0) throw new ValidationError({ quantity: 'موجودی اولیه فقط موجودی را زیاد می‌کند. برای کم کردن، «کسری» یا «ضایعات / خرابی» را انتخاب کنید.' })
-          const totalCost = mulDivRound(delta, input.unitCost ?? 0, 1000)
+          // بهای واحدِ ردیف × (افزایش به واحد ردیف) = delta × unitCost / factor ؛ در حالت مبلغ کل همان عدد واردشده
+          const totalCost = totalMode ? (input.totalCost ?? 0) : mulDivRound(delta, input.unitCost ?? 0, factor)
           if (totalCost > MAX_AMOUNT) throw new ValidationError({ unitCost: 'بهای کل بیش از حد مجاز است.' })
           return inv.applyMovement({ ...base, quantityDelta: delta, movementType: 'opening' }, { kind: 'lot', totalCost })
         }

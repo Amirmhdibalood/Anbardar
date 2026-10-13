@@ -1,4 +1,4 @@
-import { AppError, GENERIC_ERROR_MESSAGE } from '../utils/errors'
+import { AppError, GENERIC_ERROR_MESSAGE, ValidationError } from '../utils/errors'
 
 /** پیام فارسی برای هر ستون یکتا (UNIQUE) */
 const UNIQUE_MESSAGES: Record<string, string> = {
@@ -13,6 +13,7 @@ const UNIQUE_MESSAGES: Record<string, string> = {
 
 /** پیام مربوط به Triggerهای دیتابیس (RAISE(ABORT, '<کد>')) */
 const TRIGGER_ERRORS: Record<string, AppError> = {
+  sub_unit_locked: new ValidationError({ subUnits: 'ضریب واحدی که در فاکتور استفاده شده قابل تغییر نیست؛ آن را حذف کنید و واحد دیگری بسازید.' }),
   negative_stock: new AppError('insufficient_stock', 'موجودی کالا در انبار کافی نیست.'),
   ledger_immutable: new AppError('immutable', 'حرکت‌های ثبت‌شده انبار و بهای آن‌ها قابل ویرایش یا حذف نیستند.'),
   document_immutable: new AppError(
@@ -21,6 +22,8 @@ const TRIGGER_ERRORS: Record<string, AppError> = {
   ),
   fraction_not_allowed: new AppError('validation', 'برای واحد این کالا فقط تعداد صحیح (بدون اعشار) مجاز است.'),
   unit_locked: new AppError('protected', 'واحد کالا پس از ثبت اولین تراکنش قابل تغییر نیست.'),
+  unit_mismatch: new AppError('validation', 'واحد انتخاب‌شده برای این کالا تعریف نشده یا ضریبش درست نیست.'),
+  cheque_mismatch: new AppError('validation', 'اطلاعات چک با سند دریافت/پرداخت نمی‌خواند.'),
   amount_mismatch: new AppError('validation', 'مبلغ‌های فاکتور با هم نمی‌خوانند. فاکتور را بررسی و دوباره ثبت کنید.'),
   party_wrong_role: new AppError('validation', 'طرف حساب انتخاب‌شده برای این نوع فاکتور تعریف نشده است (مشتری/تأمین‌کننده).'),
   party_role_in_use: new AppError('in_use', 'این طرف حساب با همین نقش فاکتور دارد، پس این نقش برداشته نمی‌شود.'),
@@ -48,7 +51,7 @@ export function mapDbError(error: unknown, sql?: string): AppError {
   const text = messageOf(error)
 
   for (const [marker, mapped] of Object.entries(TRIGGER_ERRORS)) {
-    if (text.includes(marker)) return new AppError(mapped.code, mapped.userMessage, { cause: error })
+    if (text.includes(marker)) return mapped instanceof ValidationError ? new ValidationError({ ...mapped.fieldErrors }) : new AppError(mapped.code, mapped.userMessage, { cause: error })
   }
 
   const unique = /UNIQUE constraint failed:\s*([^\n(]+)/i.exec(text)

@@ -67,7 +67,10 @@ export interface WarehouseTransferItem extends BaseEntity {
 export interface ReturnLineInput {
   /** شناسه ردیف فاکتور اصلی */
   sourceItemId: string
+  /** تعداد به واحد unitId (خالی یا 'base' = واحد اصلی کالا) */
   quantity: Quantity
+  /** همان واحد ردیف فاکتور، یا خالی برای واحد اصلی */
+  unitId?: string | null
 }
 
 export interface TransferLineInput {

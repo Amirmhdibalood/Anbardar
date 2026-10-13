@@ -140,6 +140,9 @@ export class SqliteReturnsRepository {
     lineTotal: number
     costs: MovementCosts
     lineNo: number
+    unitId?: string | null
+    unitFactor?: number
+    unitQuantity?: number
   }): Promise<void> {
     const now = nowIso()
     const { sql, params } = insertSql('sale_return_items', {
@@ -150,6 +153,9 @@ export class SqliteReturnsRepository {
       quantity: row.quantity,
       unit_price: row.unitPrice,
       line_total: row.lineTotal,
+      unit_id: row.unitId ?? null,
+      unit_factor: row.unitFactor ?? 1000,
+      unit_quantity: row.unitQuantity ?? null,
       cost_fifo: row.costs.fifo,
       cost_average: row.costs.average,
       cost_last: row.costs.last,
@@ -235,6 +241,9 @@ export class SqliteReturnsRepository {
     lineTotal: number
     costs: MovementCosts
     lineNo: number
+    unitId?: string | null
+    unitFactor?: number
+    unitQuantity?: number
   }): Promise<void> {
     const now = nowIso()
     const { sql, params } = insertSql('purchase_return_items', {
@@ -245,6 +254,9 @@ export class SqliteReturnsRepository {
       quantity: row.quantity,
       unit_price: row.unitPrice,
       line_total: row.lineTotal,
+      unit_id: row.unitId ?? null,
+      unit_factor: row.unitFactor ?? 1000,
+      unit_quantity: row.unitQuantity ?? null,
       cost_fifo: row.costs.fifo,
       cost_average: row.costs.average,
       cost_last: row.costs.last,

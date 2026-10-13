@@ -4,8 +4,19 @@ import { createRepositories } from '../repositories'
 import { AppError, ValidationError } from '../utils/errors'
 import { newId } from '../utils/id'
 import { mulDivRound } from '../utils/money'
-import { lineGross } from '../utils/quantity'
 import { cleanText } from '../validation/fields'
+import { toBaseQuantity } from '../utils/invoiceMath'
+
+/** تعداد برگشت به واحد ردیف (یا واحد پایه) → هزارم واحد پایه */
+function resolveReturnQty(line: ReturnLineInput, src: { unitId: string | null; unitFactor: number }, idx: number) {
+  const useSrcUnit = !!line.unitId && line.unitId === src.unitId
+  const factor = useSrcUnit ? src.unitFactor : 1000
+  if (line.unitId && !useSrcUnit && line.unitId !== 'base') throw new ValidationError({ [`lines.${idx}.unitId`]: 'واحد برگشت باید واحد ردیف فاکتور یا واحد اصلی کالا باشد.' })
+  if (!Number.isSafeInteger(line.quantity) || line.quantity <= 0) throw new ValidationError({ [`lines.${idx}.quantity`]: 'تعداد برگشت معتبر نیست.' })
+  const base = toBaseQuantity(line.quantity, factor)
+  if (base === null || base <= 0) throw new ValidationError({ [`lines.${idx}.quantity`]: 'تعداد برگشت به واحد اصلی بیش از سه رقم اعشار می‌شود.' })
+  return { base, unitId: useSrcUnit ? src.unitId : null, unitFactor: factor, unitQuantity: line.quantity }
+}
 import { nowIso } from '../utils/time'
 import { createInventoryService } from './inventoryService'
 import { cancelAutoDocuments, recordReturnRefund } from './moneyService'
@@ -43,6 +54,9 @@ export function createReturnService(db: SqlExecutor) {
           productId: string
           quantity: number
           unitPrice: number
+          unitId: string | null
+          unitFactor: number
+          unitQuantity: number
           lineTotal: number
           costs: { fifo: number; average: number; last: number }
         }[] = []
@@ -50,36 +64,36 @@ export function createReturnService(db: SqlExecutor) {
         for (const [idx, line] of input.lines.entries()) {
           const src = byId.get(line.sourceItemId)
           if (!src) throw new ValidationError({ [`lines.${idx}`]: 'ردیف فاکتور معتبر نیست.' })
-          if (!Number.isSafeInteger(line.quantity) || line.quantity <= 0) {
-            throw new ValidationError({ [`lines.${idx}.quantity`]: 'تعداد برگشت معتبر نیست.' })
-          }
+          const u = resolveReturnQty(line, src, idx)
+          const qty = u.base
           const already = await r.returns.returnedQtyForSalesItem(src.id)
           const left = src.quantity - already
-          if (line.quantity > left) {
+          if (qty > left) {
             throw new ValidationError({
               [`lines.${idx}.quantity`]: `از این ردیف حداکثر می‌توانید ${left} هزارم‌واحد برگردانید.`,
             })
           }
-          const lineTotal = lineGross(line.quantity, src.unitPrice)
-          if (lineTotal === null) throw new ValidationError({ [`lines.${idx}`]: 'مبلغ ردیف معتبر نیست.' })
           // بهای متناسب با بهای ذخیره‌شده روی ردیف فروش
           const costs = src.costs
             ? {
-                fifo: mulDivRound(src.costs.fifo, line.quantity, src.quantity),
-                average: mulDivRound(src.costs.average, line.quantity, src.quantity),
-                last: mulDivRound(src.costs.last, line.quantity, src.quantity),
+                fifo: mulDivRound(src.costs.fifo, qty, src.quantity),
+                average: mulDivRound(src.costs.average, qty, src.quantity),
+                last: mulDivRound(src.costs.last, qty, src.quantity),
               }
             : { fifo: 0, average: 0, last: 0 }
           // مبلغ برگشتی به مشتری = نسبت مبلغ خالص ردیف (پس از سهم تخفیف فاکتور)
-          const netShare = mulDivRound(src.lineTotal - src.invoiceDiscountShare, line.quantity, src.quantity)
+          const netShare = mulDivRound(src.lineTotal - src.invoiceDiscountShare, qty, src.quantity)
           total += netShare
           const itemId = newId()
           prepared.push({
             id: itemId,
             salesItemId: src.id,
             productId: src.productId,
-            quantity: line.quantity,
+            quantity: qty,
             unitPrice: src.unitPrice,
+            unitId: u.unitId,
+            unitFactor: u.unitFactor,
+            unitQuantity: u.unitQuantity,
             lineTotal: netShare,
             costs,
           })
@@ -142,6 +156,9 @@ export function createReturnService(db: SqlExecutor) {
           productId: string
           quantity: number
           unitPrice: number
+          unitId: string | null
+          unitFactor: number
+          unitQuantity: number
           lineTotal: number
           preferLotMovementId: string
         }[] = []
@@ -149,12 +166,11 @@ export function createReturnService(db: SqlExecutor) {
         for (const [idx, line] of input.lines.entries()) {
           const src = byId.get(line.sourceItemId)
           if (!src) throw new ValidationError({ [`lines.${idx}`]: 'ردیف فاکتور معتبر نیست.' })
-          if (!Number.isSafeInteger(line.quantity) || line.quantity <= 0) {
-            throw new ValidationError({ [`lines.${idx}.quantity`]: 'تعداد برگشت معتبر نیست.' })
-          }
+          const u = resolveReturnQty(line, src, idx)
+          const qty = u.base
           const already = await r.returns.returnedQtyForPurchaseItem(src.id)
           const left = src.quantity - already
-          if (line.quantity > left) {
+          if (qty > left) {
             throw new ValidationError({
               [`lines.${idx}.quantity`]: `از این ردیف حداکثر می‌توانید ${left} هزارم‌واحد برگردانید.`,
             })
@@ -163,14 +179,17 @@ export function createReturnService(db: SqlExecutor) {
           if (!purchaseMove || purchaseMove.movementType !== 'purchase') {
             throw new AppError('integrity', 'حرکت خرید این ردیف پیدا نشد.')
           }
-          const netShare = mulDivRound(src.lineTotal - src.invoiceDiscountShare, line.quantity, src.quantity)
+          const netShare = mulDivRound(src.lineTotal - src.invoiceDiscountShare, qty, src.quantity)
           total += netShare
           prepared.push({
             id: newId(),
             purchaseItemId: src.id,
             productId: src.productId,
-            quantity: line.quantity,
+            quantity: qty,
             unitPrice: src.unitPrice,
+            unitId: u.unitId,
+            unitFactor: u.unitFactor,
+            unitQuantity: u.unitQuantity,
             lineTotal: netShare,
             preferLotMovementId: purchaseMove.id,
           })
@@ -209,6 +228,9 @@ export function createReturnService(db: SqlExecutor) {
             quantity: p.quantity,
             unitPrice: p.unitPrice,
             lineTotal: p.lineTotal,
+            unitId: p.unitId,
+            unitFactor: p.unitFactor,
+            unitQuantity: p.unitQuantity,
             costs: movement.costs!,
             lineNo: i + 1,
           })

@@ -11,6 +11,8 @@ import {
 } from '../models/money'
 import type { Party, PartyInput } from '../models/party'
 import { createCatalogService } from './catalogService'
+import { CHEQUE_STATUS_LABELS, type ChequeInput } from '../models/cheque'
+import { chequeOfDocument, chequeSpentBy, insertCheque, validateChequeInput } from './chequeService'
 import { createRepositories } from '../repositories'
 import { compareFa } from '../utils/collate'
 import { AppError, ValidationError } from '../utils/errors'
@@ -35,6 +37,10 @@ export interface MoneyDocumentInput {
   allocations?: AllocationInput[]
   /** شناسه یکتای فرم برای جلوگیری از ثبت دوباره با دو بار زدن دکمه */
   requestId?: string
+  /** روش «چک»: شماره، بانک و سررسید (الزامی) */
+  cheque?: ChequeInput
+  /** داخلی: سند پرداختِ «خرج چک دریافتی» (ردیف چک جدید ندارد) */
+  spendsCheque?: boolean
 }
 
 export interface OpeningBalanceInput {
@@ -104,6 +110,7 @@ export function createMoneyService(db: SqlExecutor) {
       if (!METHODS.includes(method)) f.fail('method', 'روش پرداخت معتبر نیست.')
       const note = optionalText(f, 'note', 'توضیحات', input.note)
       f.done()
+      const cheque = method === 'cheque' && !input.spendsCheque ? validateChequeInput(input.cheque) : null
 
       return db.transaction(async (tx) => {
         const r = createRepositories(tx)
@@ -139,6 +146,7 @@ export function createMoneyService(db: SqlExecutor) {
 
         const doc = await r.money.insertDocument({ kind, partyId: party.id, amount, docDate, method, note, source: 'manual', sourceId: null, requestId: input.requestId ?? null })
         for (const a of allocations) await r.money.insertSettlement(doc.id, invoiceKind, a.invoiceId, a.amount)
+        if (cheque) await insertCheque(tx, doc.id, kind === 'receipt' ? 'received' : 'issued', cheque)
         return doc
       })
     },
@@ -219,6 +227,14 @@ export function createMoneyService(db: SqlExecutor) {
         if (doc.source !== 'manual') {
           throw new AppError('protected', 'این سند همراه فاکتور یا برگشت ثبت شده است. برای اصلاح، همان فاکتور یا برگشت را ابطال کنید.')
         }
+        const cheque = await chequeOfDocument(tx, id)
+        if (cheque && cheque.status !== 'pending') {
+          throw new AppError('protected', `چک این سند «${CHEQUE_STATUS_LABELS[cheque.status]}» است و سند قابل ابطال نیست.`)
+        }
+        const spent = await chequeSpentBy(tx, id)
+        if (spent && spent.status === 'spent') {
+          throw new AppError('protected', 'این پرداخت با خرج چک ثبت شده است. اگر چک برگشت خورد، در صفحه چک‌ها «برگشتی» را بزنید.')
+        }
         await r.money.markCancelled(id, why, nowIso())
       })
     },
@@ -248,7 +264,7 @@ export function createMoneyService(db: SqlExecutor) {
         const row = await db.get(`SELECT invoice_number, status FROM ${table} WHERE id = ?`, [invoiceId])
         allocations.push({ kind, invoiceId, amount: s.amount, number: row ? Number(row['invoice_number']) : 0, invoiceStatus: row ? String(row['status']) : 'missing' })
       }
-      return { document: doc, party, allocations }
+      return { document: doc, party, allocations, cheque: await chequeOfDocument(db, id), spentCheque: await chequeSpentBy(db, id) }
     },
 
     /** مانده همه طرف‌ها (برای فهرست طرف حساب) */
