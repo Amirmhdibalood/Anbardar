@@ -1,3 +1,4 @@
+import type { ProductUnitInput } from '../models/catalog'
 import type { SqlExecutor } from '../database/types'
 import type { ProductInput } from '../models/catalog'
 import { createRepositories } from '../repositories'
@@ -130,7 +131,12 @@ export function createCatalogService(db: SqlExecutor) {
           } else {
             code = await generateFreeCode(r)
           }
-          return r.products.create({ ...clean, code })
+          const created = await r.products.create({ ...clean, code })
+          if (input.subUnits) {
+            await r.products.syncSubUnits(created.id, await validateSubUnits(r, created.unitId, created.unitAllowsFraction, input.subUnits))
+            return (await r.products.getById(created.id)) ?? created
+          }
+          return created
         }),
 
       update: (id: string, input: ProductInput) =>
@@ -146,7 +152,17 @@ export function createCatalogService(db: SqlExecutor) {
           await assertUnitRules(r, clean, clean.unitId !== existing.unitId)
           const code = clean.code ?? existing.code
           if (code !== existing.code && (await r.products.getByCode(code))) throw duplicateCode()
-          return r.products.update(id, { ...clean, code })
+          const updated = await r.products.update(id, { ...clean, code })
+          if (input.subUnits) {
+            try {
+              await r.products.syncSubUnits(id, await validateSubUnits(r, updated.unitId, updated.unitAllowsFraction, input.subUnits))
+            } catch (e) {
+              if (e instanceof Error && /unit_locked/.test(e.message)) throw new ValidationError({ subUnits: 'ضریب واحدی که در فاکتور استفاده شده قابل تغییر نیست؛ آن را حذف کنید و واحد دیگری بسازید.' })
+              throw e
+            }
+            return (await r.products.getById(id)) ?? updated
+          }
+          return updated
         }),
     },
   }
@@ -158,6 +174,26 @@ export interface ProductSearch extends Omit<ProductFilter, 'nameContains' | 'cod
 }
 
 type Repos = ReturnType<typeof createRepositories>
+
+export const MAX_SUB_UNITS = 5
+
+/** اعتبارسنجی واحدهای فرعی: واحد معتبر و غیر از واحد پایه، بدون تکرار، ضریب مثبت؛ برای پایه بدون اعشار ضریب صحیح */
+async function validateSubUnits(r: Repos, baseUnitId: string, baseAllowsFraction: boolean, list: readonly ProductUnitInput[]): Promise<ProductUnitInput[]> {
+  if (list.length > MAX_SUB_UNITS) throw new ValidationError({ subUnits: `حداکثر ${MAX_SUB_UNITS} واحد فرعی برای هر کالا.` })
+  const seen = new Set<string>()
+  for (const [i, u] of list.entries()) {
+    const key = `subUnits.${i}`
+    if (u.unitId === baseUnitId) throw new ValidationError({ [key]: 'واحد فرعی نباید همان واحد اصلی کالا باشد.' })
+    if (seen.has(u.unitId)) throw new ValidationError({ [key]: 'این واحد دو بار آمده است.' })
+    seen.add(u.unitId)
+    const unit = await r.units.getById(u.unitId)
+    if (!unit) throw new ValidationError({ [key]: 'واحد انتخاب‌شده پیدا نشد.' })
+    if (!Number.isSafeInteger(u.factor) || u.factor <= 0 || u.factor > 1_000_000_000) throw new ValidationError({ [key]: 'ضریب تبدیل را بیشتر از صفر وارد کنید.' })
+    if (u.factor === 1000) throw new ValidationError({ [key]: 'ضریب ۱ یعنی همان واحد اصلی؛ عدد دیگری وارد کنید.' })
+    if (!baseAllowsFraction && u.factor % 1000 !== 0) throw new ValidationError({ [key]: 'واحد اصلی اعشار ندارد؛ ضریب باید عدد صحیح باشد.' })
+  }
+  return [...list]
+}
 
 function duplicateCode(): AppError {
   return new ValidationError({ code: 'این کد برای کالای دیگری ثبت شده است. کد دیگری انتخاب کنید.' }, 'duplicate')

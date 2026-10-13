@@ -78,6 +78,8 @@ export interface ProductRepository extends Omit<CrudRepository<Product, ProductI
   isUsed(id: string): Promise<boolean>
   /** فهرست کالاها همراه موجودی (یک انبار یا جمع همه انبارها) */
   listWithStock(filter?: ProductFilter & { warehouseId?: string }): Promise<ProductWithStock[]>
+  /** همگام‌سازی واحدهای فرعی کالا */
+  syncSubUnits(productId: string, list: readonly import('../models/catalog').ProductUnitInput[]): Promise<void>
 }
 
 export interface SequenceRepository {
@@ -130,6 +132,8 @@ export interface InvoiceRepository<I> {
   list(filter?: InvoiceFilter): Promise<I[]>
   /** تعداد ردیف‌های هر فاکتور (شناسه ← تعداد) */
   itemCounts(invoiceIds: readonly string[]): Promise<Record<string, number>>
+  /** فقط خرید: هزینه‌های جانبی فاکتور */
+  getCharges(invoiceId: string): Promise<import("../models/invoice").PurchaseCharge[]>
   /** شناسه فاکتورهایی که «جمع ردیف‌ها» با subtotal سربرگشان نمی‌خواند (باید همیشه خالی باشد) */
   findTotalMismatches(): Promise<string[]>
   /** تنها تغییر مجاز روی سند: ابطال (تغییر موجودی با سرویس انجام می‌شود) */

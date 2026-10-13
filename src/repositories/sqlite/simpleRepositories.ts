@@ -1,10 +1,11 @@
-import type { Product, ProductGroup, ProductGroupInput, ProductInput, Unit, UnitInput, Warehouse, WarehouseInput } from '../../models/catalog'
+import type { Product, ProductUnit, ProductUnitInput, ProductGroup, ProductGroupInput, ProductInput, Unit, UnitInput, Warehouse, WarehouseInput } from '../../models/catalog'
 import type { Party, PartyInput, PartyRole } from '../../models/party'
 import type { SqlExecutor, SqlRow, SqlValue } from '../../database/types'
 import type { ListOptions, PartyRepository, ProductFilter, ProductGroupRepository, ProductRepository, ProductWithStock, UnitRepository, WarehouseRepository } from '../types'
 import { EntityRepository } from './entityRepository'
 import { DEFAULT_UNIT_ID } from '../../models/units'
 import { nowIso } from '../../utils/time'
+import { newId } from '../../utils/id'
 import { baseFromRow, escapeLike, notFound, num, numOrNull, str, strOrNull } from './helpers'
 
 export class SqliteProductGroupRepository extends EntityRepository<ProductGroup, ProductGroupInput> implements ProductGroupRepository {
@@ -164,6 +165,26 @@ export class SqliteProductRepository extends EntityRepository<Product, ProductWr
       reorderPoint: num(r, 'reorder_point'),
       salePrice: num(r, 'sale_price'),
       description: strOrNull(r, 'description'),
+      subUnits: parseSubUnits(r['sub_units']),
+    }
+  }
+
+  /** همگام‌سازی واحدهای فرعی: جدید ← درج؛ حذف‌شده ← غیرفعال؛ ضریب تغییرکرده ← به‌روزرسانی (Trigger اگر استفاده شده باشد جلوگیری می‌کند) */
+  async syncSubUnits(productId: string, list: readonly ProductUnitInput[]): Promise<void> {
+    const rows = await this.db.all<{ id: string; unit_id: string; factor: number; is_active: number }>('SELECT id, unit_id, factor, is_active FROM product_units WHERE product_id = ?', [productId])
+    const now = nowIso()
+    const wanted = new Map(list.map((u) => [u.unitId, u.factor]))
+    for (const row of rows) {
+      const factor = wanted.get(row.unit_id)
+      if (factor === undefined) {
+        if (row.is_active) await this.db.run('UPDATE product_units SET is_active = 0, updated_at = ? WHERE id = ?', [now, row.id])
+      } else if (factor !== row.factor || !row.is_active) {
+        await this.db.run('UPDATE product_units SET factor = ?, is_active = 1, updated_at = ? WHERE id = ?', [factor, now, row.id])
+      }
+      wanted.delete(row.unit_id)
+    }
+    for (const [unitId, factor] of wanted) {
+      await this.db.run('INSERT INTO product_units (id, product_id, unit_id, factor, created_at, updated_at, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)', [newId(), productId, unitId, factor, now, now])
     }
   }
 
@@ -243,12 +264,24 @@ export class SqliteProductRepository extends EntityRepository<Product, ProductWr
     const { where, params } = this.where(filter)
     const warehouse = filter.warehouseId ? ' AND s.warehouse_id = ?' : ''
     const sql = `SELECT p.*, u.name AS unit_name, u.allows_fraction AS unit_allows_fraction,
-  COALESCE((SELECT SUM(s.quantity) FROM warehouse_stock s WHERE s.product_id = p.id${warehouse}), 0) AS stock_qty
+  COALESCE((SELECT SUM(s.quantity) FROM warehouse_stock s WHERE s.product_id = p.id${warehouse}), 0) AS stock_qty, ${SUB_UNITS}
 FROM products p JOIN units u ON u.id = p.unit_id ${where} ORDER BY p.name, p.code`
     const rows = await this.db.all(sql, filter.warehouseId ? [filter.warehouseId, ...params] : params)
     return rows.map((r) => ({ product: this.fromRow(r), quantity: num(r, 'stock_qty') }))
   }
 }
 
-const SELECT_PRODUCT = `SELECT p.*, u.name AS unit_name, u.allows_fraction AS unit_allows_fraction
+const SUB_UNITS = `(SELECT group_concat(pu.id || char(31) || pu.unit_id || char(31) || uu.name || char(31) || uu.allows_fraction || char(31) || pu.factor || char(31) || pu.is_active, char(30))
+   FROM product_units pu JOIN units uu ON uu.id = pu.unit_id WHERE pu.product_id = p.id) AS sub_units`
+const SELECT_PRODUCT = `SELECT p.*, u.name AS unit_name, u.allows_fraction AS unit_allows_fraction, ${SUB_UNITS}
 FROM products p JOIN units u ON u.id = p.unit_id`
+
+/** ردیف‌های product_units که با group_concat فشرده شده‌اند (جداکننده‌ها نویسه‌های کنترلی‌اند) */
+function parseSubUnits(raw: unknown): ProductUnit[] {
+  if (typeof raw !== 'string' || raw === '') return []
+  return raw
+    .split(String.fromCharCode(30))
+    .map((part) => part.split(String.fromCharCode(31)))
+    .map(([id = '', unitId = '', unitName = '', frac = '0', factor = '0', active = '1']) => ({ id, unitId, unitName, allowsFraction: frac === '1', factor: Number(factor), isActive: active === '1' }))
+    .sort((a, b) => a.factor - b.factor)
+}

@@ -26,6 +26,22 @@ export interface UnitInput {
   allowsFraction: boolean
 }
 
+/** واحد فرعی یک کالا: factor = هزارم واحد پایه در یک واحد فرعی (کارتن = ۲۴ عدد → 24000) */
+export interface ProductUnit {
+  id: string
+  unitId: string
+  unitName: string
+  allowsFraction: boolean
+  factor: number
+  isActive: boolean
+}
+
+export interface ProductUnitInput {
+  unitId: string
+  /** هزارم واحد پایه */
+  factor: number
+}
+
 export interface Product extends BaseEntity {
   code: string
   name: string
@@ -37,6 +53,8 @@ export interface Product extends BaseEntity {
   /** واحد فرعی و ضریب تبدیل: در MVP استفاده نمی‌شوند ولی در Schema نگه داشته شده‌اند */
   subUnit: string | null
   conversionRatio: number | null
+  /** واحدهای فرعی (Migration 007)؛ فعال و غیرفعال */
+  subUnits?: ProductUnit[]
   /** هزارم واحد (۱٫۵ = ۱۵۰۰) */
   reorderPoint: Quantity
   salePrice: Money
@@ -63,6 +81,8 @@ export interface ProductInput {
   unitId?: string
   subUnit?: string | null
   conversionRatio?: number | null
+  /** واحدهای فرعی؛ نبودن = بدون تغییر */
+  subUnits?: ProductUnitInput[]
   /** هزارم واحد */
   reorderPoint?: Quantity
   salePrice?: Money

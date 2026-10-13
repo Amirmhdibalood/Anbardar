@@ -206,7 +206,7 @@ describe('invoice discount and arithmetic', () => {
       'INSERT INTO sales_invoices (id, invoice_number, invoice_date, warehouse_id, subtotal_amount, discount, total_amount, customer_id) VALUES (?, 77, ?, ?, 999, 0, 999, ?)',
       [id, NOW, f.warehouseId, f.customerId],
     )
-    await f.db.run('INSERT INTO sales_items (id, invoice_id, product_id, quantity, unit_price, discount, line_total) VALUES (?, ?, ?, 1000, 5, 0, 5)', [newId(), id, p.id])
+    await f.db.run('INSERT INTO sales_items (id, invoice_id, product_id, quantity, unit_quantity, unit_price, gross_amount, discount, line_total) VALUES (?, ?, ?, 1000, 1000, 5, 5, 0, 5)', [newId(), id, p.id])
     assert.deepEqual(await f.repos.salesInvoices.findTotalMismatches(), [id])
   })
 
@@ -269,7 +269,7 @@ describe('migration 001 -> 002 on a database with data', () => {
     await db.run(`INSERT INTO payments (id, sales_invoice_id, amount, paid_at, ${cols}) VALUES (?, ?, 500, ?, ?, ?, 1)`, [newId(), sale, NOW, NOW, NOW])
 
     const report = await runMigrations(db, MIGRATIONS, snapshots)
-    assert.deepEqual(report.applied, [2, 3, 4, 5, 6])
+    assert.deepEqual(report.applied, [2, 3, 4, 5, 6, 7])
     assert.ok(report.snapshot, 'a safety snapshot was taken first')
     assert.equal(await db.isForeignKeysEnabled(), true)
     assert.deepEqual(await db.all('PRAGMA foreign_key_check'), [])

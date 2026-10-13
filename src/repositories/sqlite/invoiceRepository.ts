@@ -1,7 +1,8 @@
 import type { SqlExecutor, SqlRow, SqlValue } from '../../database/types'
 import type { IsoDateTime } from '../../models/common'
-import type { InvoiceFilter, InvoiceInput, InvoiceItem, InvoiceStatus, PurchaseInvoice, SalesInvoice } from '../../models/invoice'
+import type { InvoiceFilter, InvoiceInput, InvoiceItem, InvoiceStatus, PurchaseCharge, PurchaseInvoice, SalesInvoice } from '../../models/invoice'
 import { prepareInvoice, type PreparedInvoice } from '../../utils/invoiceMath'
+import { newId } from '../../utils/id'
 import { nowIso } from '../../utils/time'
 import type { InvoiceRepository, InvoiceWithItems, SequenceName } from '../types'
 import { SqliteSequenceRepository } from './sequenceRepository'
@@ -24,7 +25,13 @@ function itemFromRow(r: SqlRow): InvoiceItem {
     invoiceId: str(r, 'invoice_id'),
     productId: str(r, 'product_id'),
     quantity: num(r, 'quantity'),
+    unitId: strOrNull(r, 'unit_id'),
+    unitFactor: r['unit_factor'] === undefined || r['unit_factor'] === null ? 1000 : num(r, 'unit_factor'),
+    unitQuantity: r['unit_quantity'] === undefined || r['unit_quantity'] === null ? num(r, 'quantity') : num(r, 'unit_quantity'),
     unitPrice: num(r, 'unit_price'),
+    priceMode: r['price_mode'] === 'total' ? 'total' : 'unit',
+    grossAmount: r['gross_amount'] === undefined || r['gross_amount'] === null ? num(r, 'line_total') + num(r, 'discount') : num(r, 'gross_amount'),
+    landedShare: r['landed_share'] === undefined || r['landed_share'] === null ? 0 : num(r, 'landed_share'),
     discount: num(r, 'discount'),
     lineTotal: num(r, 'line_total'),
     invoiceDiscountShare: num(r, 'invoice_discount_share'),
@@ -78,6 +85,7 @@ class SqliteInvoiceRepository<I> implements InvoiceRepository<I> {
         total_amount: prepared.total,
         status: 'active',
         note: input.note ?? null,
+        ...(this.cfg.table === 'purchase_invoices' ? { landed_total: prepared.landedTotal, landed_method: prepared.landedMethod } : {}),
         [this.cfg.partyColumn]: input.partyId,
         created_at: now,
         updated_at: now,
@@ -90,13 +98,18 @@ class SqliteInvoiceRepository<I> implements InvoiceRepository<I> {
         const costs: Record<string, number> =
           this.cfg.itemsTable === 'sales_items'
             ? { cost_fifo: line.costs?.fifo ?? 0, cost_average: line.costs?.average ?? 0, cost_last: line.costs?.last ?? 0 }
-            : {}
+            : { landed_share: line.landedShare }
         const row = insertSql(this.cfg.itemsTable, {
           id: line.id,
           invoice_id: prepared.id,
           product_id: line.productId,
           quantity: line.quantity,
+          unit_id: line.unitId,
+          unit_factor: line.unitFactor,
+          unit_quantity: line.unitQuantity,
           unit_price: line.unitPrice,
+          price_mode: line.priceMode,
+          gross_amount: line.grossAmount,
           discount: line.discount,
           line_total: line.lineTotal,
           invoice_discount_share: line.invoiceDiscountShare,
@@ -110,15 +123,23 @@ class SqliteInvoiceRepository<I> implements InvoiceRepository<I> {
         })
         await tx.run(row.sql, row.params)
       }
+      if (this.cfg.table === 'purchase_invoices') {
+        for (const [i, c] of (input.charges ?? []).entries()) {
+          const row = insertSql('purchase_charges', { id: newId(), invoice_id: prepared.id, title: c.title, amount: c.amount, line_no: i + 1, created_at: now, updated_at: now, is_active: 1, created_by: null })
+          await tx.run(row.sql, row.params)
+        }
+      }
       const invoice = await this.getByIdWith(tx, prepared.id)
       if (!invoice) throw notFound(this.cfg.label)
       return { invoice, items: await this.getItemsWith(tx, prepared.id) }
     })
   }
 
+  /** آخرین قیمت «هر واحد پایه» (برای واحد فرعی: × ضریب ÷ ۱۰۰۰) */
   async lastUnitPrice(productId: string): Promise<number | null> {
     const row = await this.db.get<{ unit_price: number }>(
-      `SELECT it.unit_price AS unit_price FROM ${this.cfg.itemsTable} it JOIN ${this.cfg.table} i ON i.id = it.invoice_id
+      `SELECT CASE WHEN it.unit_factor = 1000 AND it.price_mode = 'unit' THEN it.unit_price
+              ELSE (it.gross_amount * 1000 * 2 + it.quantity) / (it.quantity * 2) END AS unit_price FROM ${this.cfg.itemsTable} it JOIN ${this.cfg.table} i ON i.id = it.invoice_id
        WHERE it.product_id = ? AND i.status = 'active' ORDER BY i.invoice_date DESC, i.created_at DESC, i.invoice_number DESC LIMIT 1`,
       [productId],
     )
@@ -201,6 +222,12 @@ class SqliteInvoiceRepository<I> implements InvoiceRepository<I> {
     return rows.map((r) => String(r.id))
   }
 
+  async getCharges(invoiceId: string): Promise<PurchaseCharge[]> {
+    if (this.cfg.table !== 'purchase_invoices') return []
+    const rows = await this.db.all('SELECT id, title, amount FROM purchase_charges WHERE invoice_id = ? ORDER BY line_no, id', [invoiceId])
+    return rows.map((r) => ({ id: str(r, 'id'), title: str(r, 'title'), amount: num(r, 'amount') }))
+  }
+
   async markCancelled(id: string, reason: string | null, at: IsoDateTime): Promise<void> {
     const result = await this.db.run(
       `UPDATE ${this.cfg.table} SET status = 'cancelled', cancelled_at = ?, cancel_reason = ?, updated_at = ? WHERE id = ?`,
@@ -215,5 +242,10 @@ export function createSalesInvoiceRepository(db: SqlExecutor) {
 }
 
 export function createPurchaseInvoiceRepository(db: SqlExecutor) {
-  return new SqliteInvoiceRepository<PurchaseInvoice>(db, PURCHASE, (r) => ({ ...headerFromRow(r), supplierId: str(r, 'supplier_id') }))
+  return new SqliteInvoiceRepository<PurchaseInvoice>(db, PURCHASE, (r) => ({
+    ...headerFromRow(r),
+    supplierId: str(r, 'supplier_id'),
+    landedTotal: r['landed_total'] == null ? 0 : num(r, 'landed_total'),
+    landedMethod: r['landed_method'] === 'quantity' ? 'quantity' : 'value',
+  }))
 }

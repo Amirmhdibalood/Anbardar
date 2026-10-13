@@ -1,5 +1,5 @@
 import type { SqlExecutor } from '../database/types'
-import type { InvoiceItem, InvoiceItemInput, InvoiceStatus, PurchaseInvoice } from '../models/invoice'
+import type { InvoiceItem, InvoiceItemInput, InvoiceStatus, PurchaseCharge, PurchaseInvoice } from '../models/invoice'
 import type { Product, Warehouse } from '../models/catalog'
 import type { IsoDateTime } from '../models/common'
 import { MISC_SUPPLIER_ID, type Supplier } from '../models/party'
@@ -8,7 +8,7 @@ import type { InvoiceWithItems } from '../repositories'
 import { AppError, ValidationError } from '../utils/errors'
 import { prepareInvoice } from '../utils/invoiceMath'
 import { toEnglishDigits } from '../utils/persian'
-import { isWholeQuantity } from '../utils/quantity'
+import { checkLines, unitLabel } from './lineUnits'
 import { nowIso } from '../utils/time'
 import { cleanText } from '../validation/fields'
 import { validateInvoice } from '../validation/entities'
@@ -30,6 +30,10 @@ export interface PurchaseInput {
   /** مبلغ پرداختی هنگام ثبت؛ پیش‌فرض = کل فاکتور (خرید نقدی). کمتر از کل = نسیه (فقط برای تأمین‌کننده با نام) */
   paidAmount?: number
   items: InvoiceItemInput[]
+  /** هزینه‌های جانبی (حمل، بیمه، ...): به بهای لایه‌ها اضافه می‌شود ولی جزو بدهی تأمین‌کننده نیست */
+  charges?: { title: string; amount: number }[]
+  /** روش تسهیم هزینه‌های جانبی؛ پیش‌فرض بر اساس ارزش */
+  landedMethod?: 'value' | 'quantity'
 }
 
 export interface InvoiceListFilter {
@@ -53,7 +57,8 @@ export interface PurchaseDetail {
   invoice: PurchaseInvoice
   supplier: Supplier | null
   warehouse: Warehouse | null
-  items: (InvoiceItem & { product: Product | null; netAmount: number })[]
+  items: (InvoiceItem & { product: Product | null; netAmount: number; unitName: string })[]
+  charges: PurchaseCharge[]
 }
 
 const MAX_REASON = 200
@@ -72,18 +77,14 @@ export function createPurchaseService(db: SqlExecutor) {
         if (!supplier || !supplier.isActive) throw new ValidationError({ partyId: 'تأمین‌کننده انتخاب‌شده پیدا نشد یا غیرفعال است.' })
         const warehouse = await r.warehouses.getById(clean.warehouseId)
         if (!warehouse || !warehouse.isActive) throw new ValidationError({ warehouseId: 'انبار انتخاب‌شده پیدا نشد یا غیرفعال است.' })
-        const lineErrors: Record<string, string> = {}
-        for (const [i, item] of clean.items.entries()) {
-          const product = await r.products.getById(item.productId)
-          if (!product || !product.isActive) lineErrors[`items.${i}.productId`] = `کالای ردیف ${i + 1} پیدا نشد یا غیرفعال است.`
-          else if (!product.unitAllowsFraction && !isWholeQuantity(item.quantity)) {
-            lineErrors[`items.${i}.quantity`] = `تعداد «${product.name}» باید عدد صحیح باشد (واحد «${product.unitName}» اعشار ندارد).`
-          }
-        }
-        if (Object.keys(lineErrors).length) throw new ValidationError(lineErrors)
+        const checked = await checkLines(r, clean.items)
         const invoiceDate = clean.invoiceDate ?? nowIso()
-        const prepared = prepareInvoice(clean)
-        const result = await r.purchaseInvoices.insertPrepared({ ...clean, invoiceDate }, prepared)
+        const landedTotal = (clean.charges ?? []).reduce((a, c) => a + c.amount, 0)
+        const prepared = prepareInvoice({ ...clean, items: checked.items }, undefined, {
+          factorOf: checked.factorOf,
+          landed: { total: landedTotal, method: clean.landedMethod ?? 'value' },
+        })
+        const result = await r.purchaseInvoices.insertPrepared({ ...clean, items: checked.items, invoiceDate }, prepared)
         const inventory = createInventoryService(tx)
         for (const line of prepared.lines) {
           await inventory.applyMovement(
@@ -97,7 +98,7 @@ export function createPurchaseService(db: SqlExecutor) {
               documentLineId: line.id,
               occurredAt: invoiceDate,
             },
-            { kind: 'lot', totalCost: line.lineTotal - line.invoiceDiscountShare, lotDate: invoiceDate },
+            { kind: 'lot', totalCost: line.lineTotal - line.invoiceDiscountShare + line.landedShare, lotDate: invoiceDate },
           )
         }
         const paid = resolvePaidAmount(input.paidAmount, prepared.total, supplier.isSystem, supplier.name)
@@ -161,9 +162,18 @@ export function createPurchaseService(db: SqlExecutor) {
       if (!invoice) return null
       const items = await r.purchaseInvoices.getItems(id)
       const withProducts = await Promise.all(
-        items.map(async (it) => ({ ...it, product: await r.products.getById(it.productId), netAmount: it.lineTotal - it.invoiceDiscountShare })),
+        items.map(async (it) => {
+          const product = await r.products.getById(it.productId)
+          return { ...it, product, netAmount: it.lineTotal - it.invoiceDiscountShare, unitName: product ? unitLabel(product, it.unitId) : '' }
+        }),
       )
-      return { invoice, supplier: await r.suppliers.getById(invoice.supplierId), warehouse: await r.warehouses.getById(invoice.warehouseId), items: withProducts }
+      return {
+        invoice,
+        supplier: await r.suppliers.getById(invoice.supplierId),
+        warehouse: await r.warehouses.getById(invoice.warehouseId),
+        items: withProducts,
+        charges: await r.purchaseInvoices.getCharges(id),
+      }
     },
 
     /** قیمت واحد آخرین خرید فعال این کالا (برای پیش‌فرض فرم خرید) */

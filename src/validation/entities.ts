@@ -76,11 +76,20 @@ export function validateInvoiceItem(f: Fields, item: InvoiceItemInput, index: nu
   const quantity = intInRange(f, `items.${index}.quantity`, `تعداد ${row}`, item.quantity, 1, MAX_QUANTITY)
   const unitPrice = intInRange(f, `items.${index}.unitPrice`, `قیمت ${row}`, item.unitPrice, 0, MAX_UNIT_PRICE)
   const discount = intInRange(f, `items.${index}.discount`, `تخفیف ${row}`, item.discount ?? 0, 0, MAX_AMOUNT)
-  const gross = lineGross(quantity, unitPrice)
+  const priceMode = item.priceMode === 'total' ? 'total' : 'unit'
+  if (item.priceMode !== undefined && item.priceMode !== 'unit' && item.priceMode !== 'total') f.fail(`items.${index}.priceMode`, 'نوع قیمت معتبر نیست.')
+  const lineAmount = priceMode === 'total' ? intInRange(f, `items.${index}.lineAmount`, `مبلغ کل ${row}`, item.lineAmount ?? 0, 0, MAX_AMOUNT) : undefined
+  const gross = priceMode === 'total' ? (lineAmount ?? 0) : lineGross(quantity, unitPrice)
   if (gross === null) f.fail(`items.${index}.unitPrice`, `مبلغ ${row} بیش از حد مجاز است.`)
   else if (discount > gross) f.fail(`items.${index}.discount`, `تخفیف ${row} نمی‌تواند از مبلغ ردیف بیشتر باشد.`)
   const note = optionalText(f, `items.${index}.note`, 'توضیحات', item.note)
-  return { productId, quantity, unitPrice, discount, note }
+  const unitId = item.unitId ? requiredId(f, `items.${index}.unitId`, `واحد ${row}`, item.unitId) : null
+  return { productId, quantity, unitId, unitPrice: priceMode === 'total' ? 0 : unitPrice, priceMode, ...(priceMode === 'total' ? { lineAmount } : {}), discount, note }
+}
+
+/** مبلغ ناخالص ردیف اعتبارسنجی‌شده */
+export function itemGross(it: InvoiceItemInput): number {
+  return it.priceMode === 'total' ? (it.lineAmount ?? 0) : (lineGross(it.quantity, it.unitPrice) ?? 0)
 }
 
 export function validateInvoice(input: InvoiceInput, partyLabel: 'مشتری' | 'تأمین‌کننده'): InvoiceInput {
@@ -101,11 +110,25 @@ export function validateInvoice(input: InvoiceInput, partyLabel: 'مشتری' | 
   }
   const discount = intInRange(f, 'discount', 'تخفیف فاکتور', input.discount ?? 0, 0, MAX_AMOUNT)
   let subtotal = 0
-  for (const it of items) subtotal += (lineGross(it.quantity, it.unitPrice) ?? 0) - (it.discount ?? 0)
+  for (const it of items) subtotal += itemGross(it) - (it.discount ?? 0)
   if (subtotal > MAX_AMOUNT) f.fail('items', 'جمع فاکتور بیش از حد مجاز است.')
   else if (discount > subtotal) f.fail('discount', 'تخفیف فاکتور نمی‌تواند از جمع فاکتور بیشتر باشد.')
+  const charges: { title: string; amount: number }[] = []
+  if (input.charges !== undefined) {
+    if (!Array.isArray(input.charges) || input.charges.length > 10) f.fail('charges', 'حداکثر ۱۰ هزینه جانبی.')
+    else
+      for (const [i, c] of input.charges.entries()) {
+        const title = cleanText(c.title)
+        if (!title) f.fail(`charges.${i}.title`, `عنوان هزینه ${i + 1} را وارد کنید.`)
+        else if (title.length > 60) f.fail(`charges.${i}.title`, 'عنوان هزینه حداکثر ۶۰ نویسه.')
+        const amount = amountInRange(f, `charges.${i}.amount`, `مبلغ هزینه ${i + 1}`, c.amount, 1)
+        charges.push({ title, amount })
+      }
+    if (charges.reduce((a, c) => a + c.amount, 0) > MAX_AMOUNT) f.fail('charges', 'جمع هزینه‌های جانبی بیش از حد مجاز است.')
+  }
+  const landedMethod = input.landedMethod === 'quantity' ? 'quantity' : 'value'
   f.done()
-  return { partyId, warehouseId, invoiceDate, reference, note, discount, items }
+  return { partyId, warehouseId, invoiceDate, reference, note, discount, items, ...(input.charges !== undefined ? { charges, landedMethod } : {}) }
 }
 
 export function validatePayment(input: PaymentInput): PaymentInput {
