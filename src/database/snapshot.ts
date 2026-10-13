@@ -120,6 +120,7 @@ export function validateDump(raw: unknown, maxSchemaVersion: number): DumpValida
   }
   // از نسخه ۶ مشتری/تأمین‌کننده در parties است و اسناد مالی جدول‌های خودشان را دارند
   const partyTables = d.schemaVersion >= 6 ? ['parties', 'money_documents', 'settlements'] : ['customers', 'suppliers']
+  if (d.schemaVersion >= 7) partyTables.push('product_units', 'purchase_charges', 'cheques')
   for (const name of [...REQUIRED_TABLES, ...partyTables]) {
     if (!Array.isArray(d.tables[name])) return { ok: false, error: `جدول ضروری «${name}» در فایل نیست.` }
   }

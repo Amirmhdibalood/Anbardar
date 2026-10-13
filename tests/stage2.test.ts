@@ -296,3 +296,23 @@ describe('stage 2: migration 007 on a real populated database', () => {
     assert.ok((await db.get("SELECT 1 AS x FROM sqlite_master WHERE name = 'trg_products_unit_locked'"))?.['x'])
   })
 })
+
+describe('stage 2: backup round-trip', () => {
+  it('dump/restore keeps sub-units, charges and cheques', async () => {
+    const { dumpDatabase, restoreDump, validateDump } = await import('../src/database/snapshot')
+    const { freshDb } = await import('./helpers')
+    const f = await setup()
+    const p = await f.catalog.products.create({ name: 'پ', groupId: f.groupId, unitId: each, subUnits: [{ unitId: carton, factor: 24_000 }] })
+    const supplier = await f.catalog.suppliers.create({ name: 'ت' })
+    await createPurchaseService(f.db).create({ supplierId: supplier.id, paidAmount: 0, warehouseId: f.warehouseId, items: [{ productId: p.id, unitId: carton, quantity: Q(1), unitPrice: 0, priceMode: 'total', lineAmount: 100_000 }], charges: [{ title: 'حمل', amount: 5_000 }] })
+    await createMoneyService(f.db).create({ kind: 'payment', partyId: supplier.id, amount: 100_000, method: 'cheque', cheque: { number: '1', bank: 'ملی', dueDate: '2026-11-01T00:00:00.000Z' } })
+    const dump = await dumpDatabase(f.db, 7, 'test')
+    const v = validateDump(JSON.parse(JSON.stringify(dump)))
+    assert.ok(v.ok, JSON.stringify(v))
+    const db2 = await freshDb()
+    await restoreDump(db2, dump)
+    for (const t of ['product_units', 'purchase_charges', 'cheques', 'purchase_items']) {
+      assert.equal((await db2.all(`SELECT * FROM ${t}`)).length, (await f.db.all(`SELECT * FROM ${t}`)).length, t)
+    }
+  })
+})
