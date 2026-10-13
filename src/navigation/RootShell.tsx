@@ -75,7 +75,7 @@ export function RootShell() {
             .then((changed) => (changed ? setExitPrompt(true) : exitNow()))
           break
       }
-      if (action !== 'arm-exit' && action !== 'exit') lastHome.current = null
+      if (action !== 'arm-exit') lastHome.current = null
     }
     window.addEventListener(BACK_EVENT, onBack)
     let remove: (() => void) | undefined
