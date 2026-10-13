@@ -231,7 +231,7 @@ describe('migration 002 -> 003 with legacy stock', () => {
     }
 
     const report = await runMigrations(db, MIGRATIONS, snapshots)
-    assert.deepEqual(report.applied, [3, 4, 5, 6, 7, 8])
+    assert.deepEqual(report.applied, [3, 4, 5, 6, 7, 8, 9])
     assert.ok(report.snapshot)
     assert.deepEqual(await db.all('PRAGMA foreign_key_check'), [])
     assert.equal((await db.get<{ integrity_check: string }>('PRAGMA integrity_check'))?.['integrity_check'], 'ok')

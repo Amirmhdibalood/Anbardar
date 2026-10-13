@@ -1,0 +1,8 @@
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 4px; }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.row { padding: 10px 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); }
+.row[data-action^='auth.fail'] { border-inline-start: 4px solid var(--error); }
+.top { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.top time { color: var(--muted); font-size: 12px; }
+.row p { margin: 4px 0 0; font-size: 14px; line-height: 1.8; }
+.more { display: block; margin: 12px auto; color: var(--accent); font-weight: 700; padding: 10px 16px; }

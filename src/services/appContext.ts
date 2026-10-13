@@ -10,6 +10,19 @@ import { createExpenseService } from './expenseService'
 import { createMoneyService } from './moneyService'
 import { createChequeService } from './chequeService'
 import { createNotificationService } from './notificationService'
+import { createUserService } from './userService'
+import {
+  securedCatalog,
+  securedCheques,
+  securedExpenses,
+  securedMoney,
+  securedPurchases,
+  securedReports,
+  securedReturns,
+  securedSales,
+  securedStock,
+  securedTransfers,
+} from './secured'
 import { createReportService } from './reportService'
 import { createReturnService, createTransferService } from './returnService'
 import { AppError } from '../utils/errors'
@@ -57,7 +70,7 @@ let catalogService: ReturnType<typeof createCatalogService> | null = null
 
 /** سرویس اطلاعات پایه (کالا، گروه، واحد، ...) برای صفحه‌ها؛ پس از آماده شدن برنامه صدا زده شود */
 export function getCatalog(): ReturnType<typeof createCatalogService> {
-  catalogService ??= createCatalogService(getApp().db)
+  catalogService ??= securedCatalog(getApp().db)
   return catalogService
 }
 
@@ -65,7 +78,7 @@ let stockService: ReturnType<typeof createStockService> | null = null
 
 /** سرویس موجودی (فهرست، اصلاح، تاریخچه) برای صفحه‌ها */
 export function getStock(): ReturnType<typeof createStockService> {
-  stockService ??= createStockService(getApp().db)
+  stockService ??= securedStock(getApp().db)
   return stockService
 }
 
@@ -73,7 +86,7 @@ let purchaseService: ReturnType<typeof createPurchaseService> | null = null
 
 /** سرویس فاکتور خرید برای صفحه‌ها */
 export function getPurchases(): ReturnType<typeof createPurchaseService> {
-  purchaseService ??= createPurchaseService(getApp().db)
+  purchaseService ??= securedPurchases(getApp().db)
   return purchaseService
 }
 
@@ -81,7 +94,7 @@ let saleService: ReturnType<typeof createSaleService> | null = null
 
 /** سرویس فاکتور فروش برای صفحه‌ها */
 export function getSales(): ReturnType<typeof createSaleService> {
-  saleService ??= createSaleService(getApp().db)
+  saleService ??= securedSales(getApp().db)
   return saleService
 }
 
@@ -89,7 +102,7 @@ let expenseService: ReturnType<typeof createExpenseService> | null = null
 
 /** سرویس هزینه‌های جاری برای صفحه‌ها */
 export function getExpenses(): ReturnType<typeof createExpenseService> {
-  expenseService ??= createExpenseService(getApp().db)
+  expenseService ??= securedExpenses(getApp().db)
   return expenseService
 }
 
@@ -97,33 +110,33 @@ let reportService: ReturnType<typeof createReportService> | null = null
 
 /** سرویس گزارش‌ها برای صفحه‌ها */
 export function getReports(): ReturnType<typeof createReportService> {
-  reportService ??= createReportService(getApp().db)
+  reportService ??= securedReports(getApp().db)
   return reportService
 }
 
 let returnService: ReturnType<typeof createReturnService> | null = null
 export function getReturns(): ReturnType<typeof createReturnService> {
-  returnService ??= createReturnService(getApp().db)
+  returnService ??= securedReturns(getApp().db)
   return returnService
 }
 
 let transferService: ReturnType<typeof createTransferService> | null = null
 export function getTransfers(): ReturnType<typeof createTransferService> {
-  transferService ??= createTransferService(getApp().db)
+  transferService ??= securedTransfers(getApp().db)
   return transferService
 }
 
 let moneyService: ReturnType<typeof createMoneyService> | null = null
 /** سرویس دریافت/پرداخت، مانده و دفتر طرف حساب */
 export function getMoney(): ReturnType<typeof createMoneyService> {
-  moneyService ??= createMoneyService(getApp().db)
+  moneyService ??= securedMoney(getApp().db)
   return moneyService
 }
 
 let chequeService: ReturnType<typeof createChequeService> | null = null
 
 export function getCheques(): ReturnType<typeof createChequeService> {
-  chequeService ??= createChequeService(getApp().db)
+  chequeService ??= securedCheques(getApp().db)
   return chequeService
 }
 
@@ -137,3 +150,10 @@ export function getNotifications(): ReturnType<typeof createNotificationService>
 /** رویداد «داده تغییر کرد / اعلان خوانده شد» برای تازه‌کردن نشان زنگ */
 export const NOTIFY_EVENT = 'anbardar:notifications'
 export const pingNotifications = () => window.dispatchEvent(new Event(NOTIFY_EVENT))
+
+let userService: ReturnType<typeof createUserService> | null = null
+/** کاربران، ورود/خروج */
+export function getUsers(): ReturnType<typeof createUserService> {
+  userService ??= createUserService(getApp().db)
+  return userService
+}

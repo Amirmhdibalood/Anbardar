@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { useCan } from '../hooks/useSession'
 import { useParams } from 'react-router-dom'
 import { Badge } from '../components/Badge'
 import { Button, ButtonLink } from '../components/Button'
@@ -25,6 +26,8 @@ export default function PurchaseDetailPage() {
   const toast = useToast()
   const load = useCallback(() => getPurchases().detail(id), [id])
   const { data, error, loading, reload } = useAsync(load)
+  const canCancel = useCan('purchases.cancel')
+  const canReturn = useCan('returns.purchase')
   const [asking, setAsking] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [reason, setReason] = useState('')
@@ -158,12 +161,16 @@ export default function PurchaseDetailPage() {
       </div>
       {!cancelled && (
         <div className={styles.actionStack}>
-          <ButtonLink variant="secondary" icon="plus" block to={`/purchases/${id}/return`}>
-            برگشت کالا به تأمین‌کننده
-          </ButtonLink>
-          <Button variant="danger" icon="trash" block onClick={() => setAsking(true)}>
-            ابطال فاکتور
-          </Button>
+          {canReturn && (
+            <ButtonLink variant="secondary" icon="plus" block to={`/purchases/${id}/return`}>
+              برگشت کالا به تأمین‌کننده
+            </ButtonLink>
+          )}
+          {canCancel && (
+            <Button variant="danger" icon="trash" block onClick={() => setAsking(true)}>
+              ابطال فاکتور
+            </Button>
+          )}
         </div>
       )}
 

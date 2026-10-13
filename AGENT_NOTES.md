@@ -74,3 +74,16 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
 - PDF: `utils/pdf.ts` (minimal PDF 1.4, JPEG pages) and `services/invoiceExport.ts` (canvas RTL drawing; Android Filesystem + Share; web download). The print page is `pages/InvoicePrintPage.tsx` with `@media print`.
 - `HelpTip` (?) component opens a Sheet.
 - e2e: `scripts/e2e-stage3.mjs`.
+
+## v1.3.1: floating banners
+- `components/FloatingBanners.tsx` (Home only): fixed overlay with no layout shift, at most 2 visible plus a queue. Sticky when severity >= 1, otherwise auto-hides after 6 s. Dismiss via X or a swipe (horizontal > 70px, or up > 40px). Respects reduced motion.
+- Once-only: setting `notifications_shown` is set when a banner is displayed and pruned to live ids. Backup intro and stale-backup are notification kinds (`backup:intro`, `backup:stale:<last>`).
+- Out-of-stock notifications only for products with reorderPoint > 0.
+- e2e tests that tap Home cards must close the banners first.
+
+## v1.4.0: stage 4 (users, roles, audit)
+- Design: docs/stage4-users-roles-audit.md. Migration 009 adds users + audit_log; audit_log is append-only, and the last-owner trigger applies.
+- Enforcement: `services/secured.ts` guard() — authorize, then the raw service on the same tx, then audit, all in one transaction. Unlisted methods are rejected (secure by default; a test checks coverage). appContext getters return secured services.
+- `services/authz.ts` (single-user mode = implicit owner, audited as «مالک»), `services/session.ts` (actor + usersOn store), `services/userService.ts` (PBKDF2 PINs, lockout 5 tries → 30 s doubling, audit list), `services/pin.ts`.
+- settings: appearance keys are free; others need settings.manage. Backup create/restore are audited; restore clears the session.
+- UI: `components/LockScreen.tsx` (RootShell gate; auto-lock after 5 min in background), `pages/UsersPage.tsx`, `pages/AuditLogPage.tsx`, `hooks/useSession.ts` (useCan for hiding only).

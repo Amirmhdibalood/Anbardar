@@ -57,6 +57,6 @@ describe('expenses (phase 8)', () => {
     const tables = await fx.db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table' AND name = 'expenses'")
     assert.equal(tables.length, 1)
     const version = await fx.db.get<{ version: number }>('SELECT MAX(version) AS version FROM schema_migrations')
-    assert.equal(Number(version?.version), 8)
+    assert.equal(Number(version?.version), 9)
   })
 })

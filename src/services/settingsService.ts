@@ -1,6 +1,10 @@
 import { DEFAULT_SETTINGS, type AppSettings } from '../models/settings'
 import { logger } from '../utils/logger'
+import { createRepositories } from '../repositories'
 import { getApp } from './appContext'
+import { authorize, writeAudit } from './authz'
+
+const APPEARANCE_KEYS: readonly (keyof AppSettings)[] = ['theme', 'accentDark', 'accentLight', 'font']
 import { ACCENT_CACHE_KEY, THEME_CACHE_KEY } from './legacySettingsMigration'
 
 export async function loadSettings(): Promise<AppSettings> {
@@ -15,7 +19,14 @@ export async function loadSettings(): Promise<AppSettings> {
 /** تغییر بخشی از تنظیمات و ذخیره آن در دیتابیس؛ تنظیمات جدید را برمی‌گرداند */
 export async function updateSettings(current: AppSettings, patch: Partial<AppSettings>): Promise<AppSettings> {
   const next: AppSettings = { ...current, ...patch }
-  await getApp().repos.settings.save(next)
+  // ظاهر (تم، رنگ، فونت) برای همه آزاد است؛ بقیه تنظیمات فقط با مجوز settings.manage
+  const changed = (Object.keys(patch) as (keyof AppSettings)[]).filter((k) => patch[k] !== current[k])
+  const sensitive = changed.filter((k) => !APPEARANCE_KEYS.includes(k))
+  await getApp().db.transaction(async (tx) => {
+    const actor = sensitive.length ? await authorize(tx, 'settings.manage') : null
+    await createRepositories(tx).settings.save(next)
+    if (actor) await writeAudit(tx, actor, { action: 'settings.update', entityType: 'settings', summary: `تغییر تنظیمات: ${sensitive.join('، ')}` })
+  })
   cacheTheme(next)
   return next
 }

@@ -269,7 +269,7 @@ describe('migration 001 -> 002 on a database with data', () => {
     await db.run(`INSERT INTO payments (id, sales_invoice_id, amount, paid_at, ${cols}) VALUES (?, ?, 500, ?, ?, ?, 1)`, [newId(), sale, NOW, NOW, NOW])
 
     const report = await runMigrations(db, MIGRATIONS, snapshots)
-    assert.deepEqual(report.applied, [2, 3, 4, 5, 6, 7, 8])
+    assert.deepEqual(report.applied, [2, 3, 4, 5, 6, 7, 8, 9])
     assert.ok(report.snapshot, 'a safety snapshot was taken first')
     assert.equal(await db.isForeignKeysEnabled(), true)
     assert.deepEqual(await db.all('PRAGMA foreign_key_check'), [])

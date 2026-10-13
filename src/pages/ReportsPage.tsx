@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { useCan } from '../hooks/useSession'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
@@ -42,6 +43,19 @@ const TABS: { id: Tab; label: string }[] = [
 
 /** گزارش‌ها: سود و زیان، نمودار درآمد/هزینه، کالا، فروش، خرید، هشدار موجودی */
 export default function ReportsPage() {
+  const allowed = useCan('reports.view')
+  if (!allowed) {
+    return (
+      <>
+        <PageHeader title="گزارش‌ها" />
+        <EmptyState icon="shield" title="دسترسی به گزارش‌ها ندارید" description="گزارش سود، فروش و هزینه فقط برای مالک و مدیر است." />
+      </>
+    )
+  }
+  return <ReportsContent />
+}
+
+function ReportsContent() {
   const [params, setParams] = useSearchParams()
   const tab = (params.get('t') as Tab | null) ?? 'summary'
   const spec = periodFromParams(params)

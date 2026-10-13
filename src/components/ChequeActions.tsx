@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCan } from '../hooks/useSession'
 import { CHEQUE_STATUS_LABELS, CHEQUE_TONES, type ChequeRow, type ChequeStatus } from '../models/cheque'
 import type { Party } from '../models/party'
 import { getCatalog, getCheques } from '../services/appContext'
@@ -21,6 +22,7 @@ export function ChequeBadge({ status }: { status: ChequeStatus }) {
 /** دکمه‌های وضعیت چک: وصول، برگشتی، خرج (فقط دریافتی در جریان) */
 export function ChequeActions({ cheque, onDone }: { cheque: ChequeRow; onDone: () => void }) {
   const toast = useToast()
+  const canManage = useCan('cheques.manage')
   const [ask, setAsk] = useState<'clear' | 'bounce' | null>(null)
   const [spendOpen, setSpendOpen] = useState(false)
   const [parties, setParties] = useState<Party[] | null>(null)
@@ -28,7 +30,7 @@ export function ChequeActions({ cheque, onDone }: { cheque: ChequeRow; onDone: (
   const [spendError, setSpendError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const open = cheque.documentStatus === 'active' && (cheque.status === 'pending' || cheque.status === 'spent')
-  if (!open) return null
+  if (!open || !canManage) return null
   const amount = formatMoney(cheque.amount, { withUnit: true })
 
   const openSpend = async () => {

@@ -90,7 +90,7 @@ describe('migration', () => {
 
   it('refuses to touch a database created by a newer app version', async () => {
     const f = await setup()
-    await f.db.run("INSERT INTO schema_migrations (version, name, checksum, applied_at) VALUES (9, 'future', 'x', ?)", [NOW])
+    await f.db.run("INSERT INTO schema_migrations (version, name, checksum, applied_at) VALUES (99, 'future', 'x', ?)", [NOW])
     await expectAppError(runMigrations(f.db, MIGRATIONS, f.snapshots), 'database_newer')
   })
 

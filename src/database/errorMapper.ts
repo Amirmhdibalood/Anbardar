@@ -13,6 +13,8 @@ const UNIQUE_MESSAGES: Record<string, string> = {
 
 /** پیام مربوط به Triggerهای دیتابیس (RAISE(ABORT, '<کد>')) */
 const TRIGGER_ERRORS: Record<string, AppError> = {
+  last_owner: new AppError('protected', 'دست‌کم یک «مالک» فعال باید بماند؛ اول مالک دیگری تعریف کنید.'),
+  audit_immutable: new AppError('immutable', 'گزارش فعالیت‌ها قابل ویرایش یا حذف نیست.'),
   sub_unit_locked: new ValidationError({ subUnits: 'ضریب واحدی که در فاکتور استفاده شده قابل تغییر نیست؛ آن را حذف کنید و واحد دیگری بسازید.' }),
   negative_stock: new AppError('insufficient_stock', 'موجودی کالا در انبار کافی نیست.'),
   ledger_immutable: new AppError('immutable', 'حرکت‌های ثبت‌شده انبار و بهای آن‌ها قابل ویرایش یا حذف نیستند.'),
@@ -54,6 +56,9 @@ export function mapDbError(error: unknown, sql?: string): AppError {
     if (text.includes(marker)) return mapped instanceof ValidationError ? new ValidationError({ ...mapped.fieldErrors }) : new AppError(mapped.code, mapped.userMessage, { cause: error })
   }
 
+  if (text.includes('ux_users_name') || /UNIQUE constraint failed:\s*users\./i.test(text)) {
+    return new AppError('duplicate', 'کاربری با این نام وجود دارد.', { cause: error })
+  }
   const unique = /UNIQUE constraint failed:\s*([^\n(]+)/i.exec(text)
   if (unique) {
     const columns = (unique[1] ?? '').trim()

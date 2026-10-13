@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
+import { useCan } from '../hooks/useSession'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { ConfirmSheet } from '../components/ConfirmSheet'
@@ -28,6 +29,7 @@ export default function BackupPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const load = useCallback(() => getBackupInfo(), [])
   const { data, error, reload } = useAsync(load)
+  const canRestore = useCan('backup.restore')
   const [busy, setBusy] = useState<'backup' | 'restore' | 'health' | null>(null)
   const [confirmRestore, setConfirmRestore] = useState(false)
   const [pendingFile, setPendingFile] = useState<string | null>(null)
@@ -131,9 +133,10 @@ export default function BackupPage() {
             e.target.value = ''
           }}
         />
-        <Button variant="secondary" block icon="file" loading={busy === 'restore'} onClick={() => fileRef.current?.click()}>
+        <Button variant="secondary" block icon="file" loading={busy === 'restore'} disabled={!canRestore} onClick={() => fileRef.current?.click()}>
           انتخاب فایل و بازیابی
         </Button>
+        {!canRestore && <p className={styles.hint ?? ''}>بازیابی فقط با حساب «مالک» ممکن است.</p>}
       </Card>
 
       <Card className={styles.group}>

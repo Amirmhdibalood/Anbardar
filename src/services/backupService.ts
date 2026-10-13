@@ -7,6 +7,8 @@ import { dumpDatabase, restoreDump, takeSnapshot, validateDump, type DatabaseDum
 import type { SnapshotStore } from '../database/snapshot'
 import { createInventoryService } from './inventoryService'
 import { getApp } from './appContext'
+import { authorize, writeAudit } from './authz'
+import { setActor } from './session'
 import { AppError } from '../utils/errors'
 import { nowIso } from '../utils/time'
 import { JALALI_MONTHS, toJalali } from '../utils/jalali'
@@ -48,7 +50,12 @@ export async function setBackupReminder(enabled: boolean): Promise<void> {
 
 /** ساخت Dump فعلی و علامت‌زدن زمان آخرین پشتیبان */
 export async function createBackupDump(): Promise<{ dump: DatabaseDump; json: string; name: string }> {
-  const dump = await dumpDatabase(getApp().db, LATEST, 'user-backup')
+  const db = getApp().db
+  await db.transaction(async (tx) => {
+    const actor = await authorize(tx, 'backup.create')
+    await writeAudit(tx, actor, { action: 'backup.create', summary: 'نسخه پشتیبان گرفته شد' })
+  })
+  const dump = await dumpDatabase(db, LATEST, 'user-backup')
   const json = JSON.stringify(dump)
   const name = fileName()
   await getApp().repos.settings.setValue(LAST_BACKUP_KEY, nowIso())
@@ -103,6 +110,7 @@ export async function restoreFromJson(text: string, snapshots: SnapshotStore): P
   if (!check.ok) throw new AppError('validation', check.error)
 
   const db = getApp().db
+  const actor = await db.transaction((tx) => authorize(tx, 'backup.restore'))
   const pre = await takeSnapshot(db, snapshots, LATEST, 'pre-restore')
   await restoreDump(db, check.dump)
   if ('flush' in db && typeof (db as { flush?: () => Promise<void> }).flush === 'function') {
@@ -119,6 +127,9 @@ export async function restoreFromJson(text: string, snapshots: SnapshotStore): P
     )
   }
   await getApp().repos.settings.setValue(LAST_BACKUP_KEY, nowIso())
+  // کاربر فعلی ممکن است در فایل بازیابی‌شده نباشد: ثبت با نام، بدون شناسه؛ سپس ورود دوباره لازم است
+  await db.transaction((tx) => writeAudit(tx, { ...actor, userId: null }, { action: 'backup.restore', summary: `بازیابی نسخه پشتیبان (نسخه پایگاه داده ${toPersianDigits(check.dump.schemaVersion)})` }))
+  setActor(null)
   return { preRestoreSnapshot: pre, fromSchemaVersion: check.dump.schemaVersion, toSchemaVersion: migration.toVersion }
 }
 

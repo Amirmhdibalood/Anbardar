@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react'
+import { useCan } from '../hooks/useSession'
 import { useParams } from 'react-router-dom'
 import { Badge } from '../components/Badge'
 import { Button, ButtonLink } from '../components/Button'
@@ -28,6 +29,9 @@ export default function SaleDetailPage() {
   const { settings } = useSettings()
   const load = useCallback(() => getSales().detail(id), [id])
   const { data, error, loading, reload } = useAsync(load)
+  const canCosts = useCan('costs.view')
+  const canCancel = useCan('sales.cancel')
+  const canReturn = useCan('returns.sale')
   const [asking, setAsking] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [reason, setReason] = useState('')
@@ -107,11 +111,13 @@ export default function SaleDetailPage() {
                 </span>
                 {it.discount > 0 && <span>تخفیف ردیف: {formatMoney(it.discount)}</span>}
               </div>
-              <div className={styles.itemMeta}>
-                <span>
-                  بهای تمام‌شده ({costMethodLabel(settings.costMethod).split(' ')[0]}): {formatMoney(cost)}
-                </span>
-              </div>
+              {canCosts && (
+                <div className={styles.itemMeta}>
+                  <span>
+                    بهای تمام‌شده ({costMethodLabel(settings.costMethod).split(' ')[0]}): {formatMoney(cost)}
+                  </span>
+                </div>
+              )}
             </div>
           )
         })}
@@ -131,14 +137,18 @@ export default function SaleDetailPage() {
           <span>مبلغ فاکتور</span>
           <strong data-testid="invoice-total">{formatMoney(received)}</strong>
         </div>
-        <div>
-          <span>بهای تمام‌شده</span>
-          <strong>{formatMoney(costSum)}</strong>
-        </div>
-        <div>
-          <span>سود این فاکتور</span>
-          <strong data-testid="invoice-profit">{formatMoney(profit)}</strong>
-        </div>
+        {canCosts && (
+          <>
+            <div>
+              <span>بهای تمام‌شده</span>
+              <strong>{formatMoney(costSum)}</strong>
+            </div>
+            <div>
+              <span>سود این فاکتور</span>
+              <strong data-testid="invoice-profit">{formatMoney(profit)}</strong>
+            </div>
+          </>
+        )}
       </div>
       <InvoicePaymentCard kind="sales" invoiceId={invoice.id} partyId={invoice.customerId} systemParty={!!customer?.isSystem} cancelled={cancelled} />
       <div className={styles.actionStack}>
@@ -148,12 +158,16 @@ export default function SaleDetailPage() {
       </div>
       {!cancelled && (
         <div className={styles.actionStack}>
-          <ButtonLink variant="secondary" icon="plus" block to={`/sales/${id}/return`}>
-            برگشت کالا از این فاکتور
-          </ButtonLink>
-          <Button variant="danger" icon="trash" block onClick={() => setAsking(true)}>
-            ابطال فاکتور
-          </Button>
+          {canReturn && (
+            <ButtonLink variant="secondary" icon="plus" block to={`/sales/${id}/return`}>
+              برگشت کالا از این فاکتور
+            </ButtonLink>
+          )}
+          {canCancel && (
+            <Button variant="danger" icon="trash" block onClick={() => setAsking(true)}>
+              ابطال فاکتور
+            </Button>
+          )}
         </div>
       )}
 

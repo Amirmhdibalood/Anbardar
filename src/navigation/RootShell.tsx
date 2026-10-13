@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
 import { Button } from '../components/Button'
+import { LockScreen } from '../components/LockScreen'
 import { Sheet } from '../components/Sheet'
+import { useSession } from '../hooks/useSession'
+import { setActor, setUsersOn } from '../services/session'
 import { useToast } from '../components/Toast'
-import { getApp } from '../services/appContext'
+import { getApp, getUsers } from '../services/appContext'
 import { hasChangesSinceBackup } from '../services/backupChanges'
 import { shareBackup } from '../services/backupService'
 import { EXIT_TOAST, decideBack } from './backButton'
@@ -36,6 +39,21 @@ export function RootShell() {
     state.current = { pathname: location.pathname, key: location.key }
   }, [location])
 
+  const session = useSession()
+  // حالت چندکاربره: در شروع بررسی، و قفل خودکار پس از ۵ دقیقه در پس‌زمینه
+  useEffect(() => {
+    void getUsers()
+      .enabled()
+      .then(setUsersOn)
+      .catch(() => setUsersOn(false))
+    let hiddenAt = 0
+    const onVis = () => {
+      if (document.hidden) hiddenAt = Date.now()
+      else if (hiddenAt && Date.now() - hiddenAt > 5 * 60_000) setActor(null)
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [])
   const [exitPrompt, setExitPrompt] = useState(false)
   const [backingUp, setBackingUp] = useState(false)
 
@@ -144,7 +162,7 @@ export function RootShell() {
 
   return (
     <>
-      <Outlet />
+      {session.usersOn && !session.actor ? <LockScreen /> : <Outlet />}
       <Sheet open={exitPrompt} title="قبل از خروج پشتیبان بگیرید؟" onClose={() => setExitPrompt(false)}>
         <div data-testid="exit-backup-sheet" style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 }}>
           <p style={{ margin: 0, lineHeight: 1.9, color: 'var(--muted)' }}>

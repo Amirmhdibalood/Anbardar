@@ -15,6 +15,8 @@ export type ErrorCode =
   | 'migration'
   | 'database_newer' // دیتابیس با نسخه جدیدتر برنامه ساخته شده
   | 'database' // خطای کلی دیتابیس
+  | 'auth_required' // ورود کاربر لازم است
+  | 'forbidden' // نقش کاربر اجازه این کار را ندارد
   | 'unknown'
 
 export class AppError extends Error {
