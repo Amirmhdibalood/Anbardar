@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { Field, QuantityInput } from '../components/Field'
+import { newRequestId } from '../services/requestKey'
 import { PageHeader } from '../components/PageHeader'
 import { Picker } from '../components/Picker'
 import { ProductPicker } from '../components/invoice/ProductPicker'
@@ -33,6 +34,8 @@ export default function NewTransferPage() {
   const leave = useLeaveConfirm(lines.length > 0, goBack, 'کالاهایی که برای انتقال انتخاب کرده‌اید ذخیره نمی‌شوند.')
   const [picker, setPicker] = useState(false)
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
+  const requestId = useRef(newRequestId()).current
   const [formError, setFormError] = useState<string | null>(null)
 
   const from = fromId || warehouses?.[0]?.id || ''
@@ -92,15 +95,18 @@ export default function NewTransferPage() {
       setFormError('حداقل یک کالا اضافه کنید.')
       return
     }
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     try {
-      const t = await getTransfers().create({ fromWarehouseId: from, toWarehouseId: to, lines: parsed })
+      const t = await getTransfers().create({ fromWarehouseId: from, toWarehouseId: to, lines: parsed, requestId })
       toast.show('انتقال ثبت شد.')
       nav(`/transfers/${t.id}`, { replace: true })
     } catch (e) {
       if (e instanceof ValidationError) setFormError(Object.values(e.fieldErrors)[0] ?? toUserMessage(e))
       else setFormError(toUserMessage(e))
     } finally {
+      busyRef.current = false
       setBusy(false)
     }
   }

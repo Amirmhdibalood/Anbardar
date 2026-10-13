@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, ButtonLink } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { Field, QuantityInput } from '../components/Field'
+import { newRequestId } from '../services/requestKey'
 import { PageHeader } from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
@@ -32,6 +33,8 @@ export default function NewPurchaseReturnPage() {
   const [units, setUnits] = useState<Record<string, 'line' | 'base'>>({})
   const leave = useLeaveConfirm(Object.values(qtys).some((q) => q.trim() !== '' && q.trim() !== '0' && q.trim() !== '۰'), goBack)
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
+  const requestId = useRef(newRequestId()).current
   const [formError, setFormError] = useState<string | null>(null)
   const lines = useMemo(() => data?.returnable.filter((r) => r.remaining > 0) ?? [], [data])
 
@@ -80,15 +83,18 @@ export default function NewPurchaseReturnPage() {
       setFormError('حداقل برای یک کالا تعداد برگشت وارد کنید.')
       return
     }
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     try {
-      await getReturns().createPurchaseReturn({ purchaseInvoiceId: id, lines: parsed })
+      await getReturns().createPurchaseReturn({ purchaseInvoiceId: id, lines: parsed, requestId })
       toast.show('برگشت خرید ثبت شد.')
       nav(`/purchases/${id}`, { replace: true })
     } catch (e) {
       if (e instanceof ValidationError) setFormError(Object.values(e.fieldErrors)[0] ?? toUserMessage(e))
       else setFormError(toUserMessage(e))
     } finally {
+      busyRef.current = false
       setBusy(false)
     }
   }

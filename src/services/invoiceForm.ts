@@ -63,6 +63,8 @@ export interface DraftTotals {
 }
 
 export interface DraftInput {
+  /** کلید یک‌باره فرم برای جلوگیری از ثبت تکراری */
+  requestId?: string
   partyId: string
   warehouseId: string
   invoiceDate: string

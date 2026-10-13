@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Button, ButtonLink } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
 import { Field, QuantityInput } from '../components/Field'
+import { newRequestId } from '../services/requestKey'
 import { PageHeader } from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
@@ -33,6 +34,8 @@ export default function NewSaleReturnPage() {
   const [units, setUnits] = useState<Record<string, 'line' | 'base'>>({})
   const leave = useLeaveConfirm(Object.values(qtys).some((q) => q.trim() !== '' && q.trim() !== '0' && q.trim() !== '۰'), goBack)
   const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
+  const requestId = useRef(newRequestId()).current
   const [formError, setFormError] = useState<string | null>(null)
 
   const lines = useMemo(() => data?.returnable.filter((r) => r.remaining > 0) ?? [], [data])
@@ -82,9 +85,11 @@ export default function NewSaleReturnPage() {
       setFormError('حداقل برای یک کالا تعداد برگشت وارد کنید.')
       return
     }
+    if (busyRef.current) return
+    busyRef.current = true
     setBusy(true)
     try {
-      const ret = await getReturns().createSaleReturn({ salesInvoiceId: id, lines: parsed })
+      const ret = await getReturns().createSaleReturn({ salesInvoiceId: id, lines: parsed, requestId })
       toast.show('برگشت فروش ثبت شد.')
       nav(`/sales/${id}`, { replace: true })
       void ret
@@ -92,6 +97,7 @@ export default function NewSaleReturnPage() {
       if (e instanceof ValidationError) setFormError(Object.values(e.fieldErrors)[0] ?? toUserMessage(e))
       else setFormError(toUserMessage(e))
     } finally {
+      busyRef.current = false
       setBusy(false)
     }
   }

@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode, useRef } from 'react'
 import type { Product, Warehouse } from '../../models/catalog'
 import type { Customer, PartyInput, Supplier } from '../../models/party'
 import { useAsync } from '../../hooks/useAsync'
 import { getStock } from '../../services/appContext'
 import { draftToInput, draftTotals, isFutureDay, lineError, lineUnit, loadPriceMode, mapServiceErrors, savePriceMode, stepQuantity, type ChargeDraft, type DraftInput, type InvoiceDraft, type LineDraft } from '../../services/invoiceForm'
 import type { LandedMethod, PriceMode } from '../../models/invoice'
+import { newRequestId } from '../../services/requestKey'
 import { SegmentedControl } from '../SegmentedControl'
 import { toPersianDigits } from '../../utils/persian'
 import { toUserMessage } from '../../utils/errors'
@@ -74,6 +75,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  // قفل همزمان (قبل از رندر بعدی) + کلید یک‌باره فرم: دوبار زدن دکمه دو فاکتور نمی‌سازد
+  const savingRef = useRef(false)
+  const requestId = useRef(newRequestId()).current
   const [picker, setPicker] = useState(false)
   const [newParty, setNewParty] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -117,6 +121,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   }
 
   const submit = async () => {
+    if (savingRef.current) return
     setFormError(null)
     const result = draftToInput(draft)
     if (!result.ok) {
@@ -124,14 +129,16 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       return
     }
     setErrors({})
+    savingRef.current = true
     setSaving(true)
     try {
-      await props.onSubmit(result.input)
+      await props.onSubmit({ ...result.input, requestId })
     } catch (e) {
       const mapped = mapServiceErrors(e, draft)
       if (mapped) setErrors(mapped)
       setFormError(toUserMessage(e))
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
   }
