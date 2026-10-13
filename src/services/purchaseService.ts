@@ -16,6 +16,7 @@ import { createInventoryService } from './inventoryService'
 import type { PaymentStatus } from '../models/money'
 import { cancelAutoDocuments, recordInvoicePayment } from './moneyService'
 import { resolvePaidAmount } from './paidAmount'
+import { claimRequestId, findByRequestId } from './requestKey'
 
 export interface PurchaseInput {
   /** خالی = تأمین‌کننده سیستمی «متفرقه» */
@@ -34,6 +35,8 @@ export interface PurchaseInput {
   charges?: { title: string; amount: number }[]
   /** روش تسهیم هزینه‌های جانبی؛ پیش‌فرض بر اساس ارزش */
   landedMethod?: 'value' | 'quantity'
+  /** کلید یک‌باره فرم؛ تکرار آن همان فاکتور قبلی را برمی‌گرداند */
+  requestId?: string | null
 }
 
 export interface InvoiceListFilter {
@@ -73,6 +76,8 @@ export function createPurchaseService(db: SqlExecutor) {
       const clean = validateInvoice({ ...input, partyId: input.supplierId || MISC_SUPPLIER_ID, reference: input.reference ? toEnglishDigits(input.reference) : input.reference }, 'تأمین‌کننده')
       return db.transaction(async (tx) => {
         const r = createRepositories(tx)
+        const existing = await findByRequestId(tx, 'purchase_invoices', input.requestId)
+        if (existing) return { invoice: (await r.purchaseInvoices.getById(existing))!, items: await r.purchaseInvoices.getItems(existing) }
         const supplier = await r.suppliers.getById(clean.partyId)
         if (!supplier || !supplier.isActive) throw new ValidationError({ partyId: 'تأمین‌کننده انتخاب‌شده پیدا نشد یا غیرفعال است.' })
         const warehouse = await r.warehouses.getById(clean.warehouseId)
@@ -103,6 +108,7 @@ export function createPurchaseService(db: SqlExecutor) {
         }
         const paid = resolvePaidAmount(input.paidAmount, prepared.total, supplier.isSystem, supplier.name)
         await recordInvoicePayment(tx, 'purchase', { id: prepared.id, partyId: supplier.id }, paid, invoiceDate)
+        await claimRequestId(tx, 'purchase_invoices', prepared.id, input.requestId)
         return result
       })
     },

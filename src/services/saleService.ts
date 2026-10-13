@@ -16,6 +16,7 @@ import { createInventoryService } from './inventoryService'
 import type { PaymentStatus } from '../models/money'
 import { cancelAutoDocuments, recordInvoicePayment } from './moneyService'
 import { resolvePaidAmount } from './paidAmount'
+import { claimRequestId, findByRequestId } from './requestKey'
 import type { InvoiceListFilter } from './purchaseService'
 
 export interface SaleInput {
@@ -30,6 +31,8 @@ export interface SaleInput {
   /** مبلغ دریافتی هنگام ثبت؛ پیش‌فرض = کل فاکتور (فروش نقدی). کمتر از کل = نسیه (فقط برای مشتری با نام) */
   paidAmount?: number
   items: InvoiceItemInput[]
+  /** کلید یک‌باره فرم؛ تکرار آن همان فاکتور قبلی را برمی‌گرداند */
+  requestId?: string | null
 }
 
 export interface SaleListRow {
@@ -57,6 +60,8 @@ export function createSaleService(db: SqlExecutor) {
     async create(input: SaleInput): Promise<InvoiceWithItems<SalesInvoice>> {
       return db.transaction(async (tx) => {
         const r = createRepositories(tx)
+        const existing = await findByRequestId(tx, 'sales_invoices', input.requestId)
+        if (existing) return { invoice: (await r.salesInvoices.getById(existing))!, items: await r.salesInvoices.getItems(existing) }
         const defaultCustomerId = (await r.settings.getValue('default_customer_id')) ?? ''
         const clean = validateInvoice({ ...input, partyId: input.customerId || defaultCustomerId, reference: input.reference ? toEnglishDigits(input.reference) : input.reference }, 'مشتری')
         const customer = await r.customers.getById(clean.partyId)
@@ -90,6 +95,7 @@ export function createSaleService(db: SqlExecutor) {
         const result = await r.salesInvoices.insertPrepared({ ...clean, items: checked.items, invoiceDate }, prepared)
         const paid = resolvePaidAmount(input.paidAmount, prepared.total, customer.isSystem, customer.name)
         await recordInvoicePayment(tx, 'sales', { id: prepared.id, partyId: customer.id }, paid, invoiceDate)
+        await claimRequestId(tx, 'sales_invoices', prepared.id, input.requestId)
         return result
       })
     },

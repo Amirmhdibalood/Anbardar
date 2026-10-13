@@ -20,6 +20,7 @@ function resolveReturnQty(line: ReturnLineInput, src: { unitId: string | null; u
 import { nowIso } from '../utils/time'
 import { createInventoryService } from './inventoryService'
 import { cancelAutoDocuments, recordReturnRefund } from './moneyService'
+import { claimRequestId, findByRequestId } from './requestKey'
 
 const MAX_REASON = 200
 
@@ -34,10 +35,13 @@ export function createReturnService(db: SqlExecutor) {
       lines: ReturnLineInput[]
       docDate?: string
       note?: string | null
+      requestId?: string | null
     }) {
       if (!input.lines.length) throw new ValidationError({ lines: 'حداقل یک ردیف برای برگشت لازم است.' })
       return db.transaction(async (tx) => {
         const r = createRepositories(tx)
+        const existing = await findByRequestId(tx, 'sale_returns', input.requestId)
+        if (existing) return (await r.returns.getSaleReturn(existing))!
         const invoice = await r.salesInvoices.getById(input.salesInvoiceId)
         if (!invoice || invoice.status !== 'active') throw new AppError('validation', 'فاکتور فروش فعال پیدا نشد.')
         const items = await r.salesInvoices.getItems(invoice.id)
@@ -127,6 +131,7 @@ export function createReturnService(db: SqlExecutor) {
           await r.returns.insertSaleReturnItem({ ...p, returnId, lineNo: i + 1 })
         }
         await recordReturnRefund(tx, 'sales', { id: invoice.id, partyId: invoice.customerId }, returnId, docDate)
+        await claimRequestId(tx, 'sale_returns', returnId, input.requestId)
         return (await r.returns.getSaleReturn(returnId))!
       })
     },
@@ -136,10 +141,13 @@ export function createReturnService(db: SqlExecutor) {
       lines: ReturnLineInput[]
       docDate?: string
       note?: string | null
+      requestId?: string | null
     }) {
       if (!input.lines.length) throw new ValidationError({ lines: 'حداقل یک ردیف برای برگشت لازم است.' })
       return db.transaction(async (tx) => {
         const r = createRepositories(tx)
+        const existing = await findByRequestId(tx, 'purchase_returns', input.requestId)
+        if (existing) return (await r.returns.getPurchaseReturn(existing))!
         const invoice = await r.purchaseInvoices.getById(input.purchaseInvoiceId)
         if (!invoice || invoice.status !== 'active') throw new AppError('validation', 'فاکتور خرید فعال پیدا نشد.')
         const items = await r.purchaseInvoices.getItems(invoice.id)
@@ -236,6 +244,7 @@ export function createReturnService(db: SqlExecutor) {
           })
         }
         await recordReturnRefund(tx, 'purchase', { id: invoice.id, partyId: invoice.supplierId }, returnId, docDate)
+        await claimRequestId(tx, 'purchase_returns', returnId, input.requestId)
         return (await r.returns.getPurchaseReturn(returnId))!
       })
     },
@@ -326,6 +335,7 @@ export function createTransferService(db: SqlExecutor) {
       lines: { productId: string; quantity: number }[]
       docDate?: string
       note?: string | null
+      requestId?: string | null
     }) {
       if (input.fromWarehouseId === input.toWarehouseId) {
         throw new ValidationError({ toWarehouseId: 'انبار مبدأ و مقصد نباید یکی باشند.' })
@@ -333,6 +343,8 @@ export function createTransferService(db: SqlExecutor) {
       if (!input.lines.length) throw new ValidationError({ lines: 'حداقل یک کالا برای انتقال لازم است.' })
       return db.transaction(async (tx) => {
         const r = createRepositories(tx)
+        const existing = await findByRequestId(tx, 'warehouse_transfers', input.requestId)
+        if (existing) return (await r.returns.getTransfer(existing))!
         const from = await r.warehouses.getById(input.fromWarehouseId)
         const to = await r.warehouses.getById(input.toWarehouseId)
         if (!from || !from.isActive) throw new ValidationError({ fromWarehouseId: 'انبار مبدأ معتبر نیست.' })
@@ -392,6 +404,7 @@ export function createTransferService(db: SqlExecutor) {
             lineNo: i + 1,
           })
         }
+        await claimRequestId(tx, 'warehouse_transfers', transferId, input.requestId)
         return (await r.returns.getTransfer(transferId))!
       })
     },

@@ -77,3 +77,43 @@ describe('stage 3: backup change detection', () => {
     assert.equal(await hasChangesSinceBackup(f.db), false)
   })
 })
+
+describe('stage 3: idempotent submit', () => {
+  it('a repeated request key returns the same document for sale, purchase, returns and transfer', async () => {
+    const { createReturnService, createTransferService } = await import('../src/services/returnService')
+    const f = await setup()
+    const p = await f.catalog.products.create({ name: 'ک', groupId: f.groupId })
+    const purchases = createPurchaseService(f.db)
+    const sales = createSaleService(f.db)
+    const buy = { warehouseId: f.warehouseId, items: [{ productId: p.id, quantity: Q(10), unitPrice: 1000 }], requestId: 'req-p' }
+    const a = await purchases.create(buy)
+    const b = await purchases.create(buy)
+    assert.equal(a.invoice.id, b.invoice.id)
+    assert.equal((await purchases.list()).length, 1)
+    const sell = { warehouseId: f.warehouseId, items: [{ productId: p.id, quantity: Q(1), unitPrice: 5000 }], requestId: 'req-s' }
+    const [s1, s2] = await Promise.all([sales.create(sell), sales.create(sell)])
+    assert.equal(s1.invoice.id, s2.invoice.id, 'concurrent double tap = one invoice')
+    assert.equal((await sales.list()).length, 1)
+    const rs = createReturnService(f.db)
+    const sr = { salesInvoiceId: s1.invoice.id, lines: [{ sourceItemId: s1.items[0]!.id, quantity: Q(1) }], requestId: 'req-sr' }
+    assert.equal((await rs.createSaleReturn(sr)).id, (await rs.createSaleReturn(sr)).id)
+    const pr = { purchaseInvoiceId: a.invoice.id, lines: [{ sourceItemId: a.items[0]!.id, quantity: Q(1) }], requestId: 'req-pr' }
+    assert.equal((await rs.createPurchaseReturn(pr)).id, (await rs.createPurchaseReturn(pr)).id)
+    const w2 = await f.catalog.warehouses.create({ name: 'انبار دو' })
+    const ts = createTransferService(f.db)
+    const tr = { fromWarehouseId: f.warehouseId, toWarehouseId: w2.id, lines: [{ productId: p.id, quantity: Q(1) }], requestId: 'req-t' }
+    assert.equal((await ts.create(tr)).id, (await ts.create(tr)).id)
+    assert.equal((await ts.list()).length, 1)
+    // بدون کلید: هر بار سند تازه
+    await purchases.create({ ...buy, requestId: undefined })
+    assert.equal((await purchases.list()).length, 2)
+  })
+  it('the DB rejects a second document with the same request key', async () => {
+    const f = await setup()
+    const p = await f.catalog.products.create({ name: 'ک', groupId: f.groupId })
+    const a = await createPurchaseService(f.db).create({ warehouseId: f.warehouseId, items: [{ productId: p.id, quantity: Q(1), unitPrice: 1 }], requestId: 'k' })
+    const b = await createPurchaseService(f.db).create({ warehouseId: f.warehouseId, items: [{ productId: p.id, quantity: Q(1), unitPrice: 1 }] })
+    await assert.rejects(f.db.run('UPDATE purchase_invoices SET request_id = ? WHERE id = ?', ['k', b.invoice.id]))
+    await assert.rejects(f.db.run('UPDATE purchase_invoices SET request_id = ? WHERE id = ?', ['other', a.invoice.id]))
+  })
+})
