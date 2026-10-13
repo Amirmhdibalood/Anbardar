@@ -82,3 +82,13 @@
   --bg: #fbf4f5; --card-hover: #f7e9ec; --border: #eedadf;
   --accent: #e11d48; --accent-soft: rgba(225, 29, 72, 0.1); --accent-text: #be123c;
 }
+
+/* جابه‌جایی نرم تم (جایگزین View Transitions) */
+html.theme-transition,
+html.theme-transition * {
+  transition: background-color 0.35s ease, color 0.35s ease, border-color 0.35s ease, fill 0.35s ease !important;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
+}

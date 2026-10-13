@@ -6,6 +6,8 @@ import { logger } from '../utils/logger'
 export const LEGACY_SETTINGS_KEY = 'anbardar.settings.v1'
 /** کش تم برای جلوگیری از چشمک در شروع برنامه (دیتابیس مرجع اصلی است؛ index.html همین کلید را می‌خواند) */
 export const THEME_CACHE_KEY = 'anbardar.theme.v1'
+/** کش رنگ تأکیدی برای index.html: {"dark":"purple","light":"teal"} */
+export const ACCENT_CACHE_KEY = 'anbardar.accent.v1'
 const DONE_MARKER = 'legacy_settings_imported'
 
 /**

@@ -1,0 +1,44 @@
+.lamp {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--muted);
+  transition: background 0.35s, color 0.35s, box-shadow 0.35s, transform 0.15s;
+}
+.lamp:active {
+  transform: scale(0.92);
+}
+.lamp:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.bulb {
+  fill: none;
+  stroke: currentColor;
+  transition: fill 0.35s;
+}
+.rays {
+  opacity: 0;
+  transform-origin: 12px 12px;
+  transform: scale(0.6);
+  transition: opacity 0.35s, transform 0.35s;
+}
+.lamp[data-lit='true'] {
+  color: #d99a06;
+  background: rgba(250, 204, 21, 0.18);
+  box-shadow: 0 0 18px rgba(250, 204, 21, 0.35);
+}
+.lamp[data-lit='true'] .bulb {
+  fill: #fde047;
+}
+.lamp[data-lit='true'] .rays {
+  opacity: 1;
+  transform: scale(1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .lamp, .bulb, .rays { transition: none; }
+}

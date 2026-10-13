@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { BACK_BUTTON_SIDE } from '../config/ui'
 import { Icon } from './Icon'
 import styles from './PageHeader.module.css'
+import { ThemeLamp } from './ThemeLamp'
 
 interface Props {
   title: string
@@ -39,7 +40,10 @@ export function PageHeader({ title, backTo, onBack, actions }: Props) {
     <Link to={backTo} className={styles.back} aria-label="بازگشت" data-back-button>
       {icon}
     </Link>
-  ) : null
+  ) : (
+    /* صفحه‌های اصلی (بدون بازگشت): چراغ تم در همان جای دکمه بازگشت */
+    <ThemeLamp />
+  )
 
   return (
     <header ref={ref} className={styles.root} data-scrolled={scrolled}>

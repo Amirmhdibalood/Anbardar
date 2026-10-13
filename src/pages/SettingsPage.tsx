@@ -2,22 +2,16 @@ import { Card } from '../components/Card'
 import { Field, TextInput } from '../components/Field'
 import { Picker } from '../components/Picker'
 import { PageHeader } from '../components/PageHeader'
-import { SegmentedControl, type SegmentOption } from '../components/SegmentedControl'
 import { useSettings } from '../hooks/useSettings'
-import { COST_METHODS, MAX_MARKUP_BP, SALE_PRICE_MODES, type CostMethod, type SalePriceMode, type ThemePreference } from '../models/settings'
+import { COST_METHODS, MAX_MARKUP_BP, SALE_PRICE_MODES, type CostMethod, type SalePriceMode } from '../models/settings'
 import { costMethodLabel, salePriceModeLabel } from '../services/pricing'
 import { toPersianDigits } from '../utils/persian'
 import styles from './SettingsPage.module.css'
+import { AppearanceSettings } from './settings/AppearanceSettings'
 import { useState } from 'react'
 
-const THEME_OPTIONS: SegmentOption<ThemePreference>[] = [
-  { value: 'system', label: 'سیستم', icon: 'monitor' },
-  { value: 'dark', label: 'تیره', icon: 'moon' },
-  { value: 'light', label: 'روشن', icon: 'sun' },
-]
-
 export default function SettingsPage() {
-  const { settings, setTheme, setCostMethod, setSalePriceMode, setMarkupBp } = useSettings()
+  const { settings, setCostMethod, setSalePriceMode, setMarkupBp } = useSettings()
   const [markupText, setMarkupText] = useState(() => toPersianDigits(String(settings.markupBp / 100)))
   const [markupError, setMarkupError] = useState<string | null>(null)
 
@@ -46,11 +40,7 @@ export default function SettingsPage() {
     <>
       <PageHeader title="تنظیمات" backTo="/more" />
 
-      <Card className={styles.group}>
-        <h2 className={styles.heading}>ظاهر برنامه</h2>
-        <p className={styles.hint}>با گزینه «سیستم»، تم برنامه با تم گوشی شما هماهنگ می‌شود.</p>
-        <SegmentedControl label="تم برنامه" options={THEME_OPTIONS} value={settings.theme} onChange={setTheme} />
-      </Card>
+      <AppearanceSettings />
 
       <Card className={styles.group}>
         <h2 className={styles.heading}>روش محاسبه سود</h2>

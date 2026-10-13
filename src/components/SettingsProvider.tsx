@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { SettingsContext, type SettingsContextValue } from '../hooks/settingsContext'
-import { DEFAULT_SETTINGS, type AppSettings, type CostMethod, type SalePriceMode, type ThemePreference } from '../models/settings'
+import { DEFAULT_SETTINGS, type AppSettings, type CostMethod, type SalePriceMode, type ThemePreference, type Accent, type ResolvedTheme } from '../models/settings'
 import { cacheTheme, loadSettings, updateSettings } from '../services/settingsService'
-import { applyTheme, resolveTheme, watchSystemTheme } from '../services/themeService'
+import { applyTheme, resolveTheme, watchSystemTheme, withThemeTransition } from '../services/themeService'
 import { logger } from '../utils/logger'
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -14,7 +14,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     loadSettings().then((loaded) => {
       if (cancelled) return
       setSettings(loaded)
-      cacheTheme(loaded.theme)
+      cacheTheme(loaded)
       setReady(true)
     })
     return () => {
@@ -25,10 +25,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // تم را با تنظیمات (و در حالت «سیستم» با تم گوشی) هماهنگ نگه می‌دارد
   useEffect(() => {
     if (!ready) return
-    const apply = () => applyTheme(resolveTheme(settings.theme))
+    const apply = () => {
+      const mode = resolveTheme(settings.theme)
+      applyTheme(mode, mode === 'dark' ? settings.accentDark : settings.accentLight)
+    }
     apply()
-    return settings.theme === 'system' ? watchSystemTheme(apply) : undefined
-  }, [ready, settings.theme])
+    return settings.theme === 'system' ? watchSystemTheme(() => withThemeTransition(apply)) : undefined
+  }, [ready, settings.theme, settings.accentDark, settings.accentLight])
 
   const latest = useRef(settings)
   useEffect(() => {
@@ -43,15 +46,27 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     updateSettings(current, change).catch((error) => logger.error('ذخیره تنظیمات ناموفق بود', error))
   }, [])
 
+  /** تغییر ظاهر با جابه‌جایی نرم: رنگ‌ها همان لحظه داخل transition اعمال می‌شوند، state بعد هماهنگ می‌شود */
+  const patchAppearance = useCallback(
+    (change: Partial<AppSettings>) => {
+      const next = { ...latest.current, ...change }
+      const mode = resolveTheme(next.theme)
+      withThemeTransition(() => applyTheme(mode, mode === 'dark' ? next.accentDark : next.accentLight))
+      patch(change)
+    },
+    [patch],
+  )
+
   const value = useMemo<SettingsContextValue>(
     () => ({
       settings,
-      setTheme: (theme: ThemePreference) => patch({ theme }),
+      setTheme: (theme: ThemePreference) => patchAppearance({ theme }),
+      setAccent: (mode: ResolvedTheme, accent: Accent) => patchAppearance(mode === 'dark' ? { accentDark: accent } : { accentLight: accent }),
       setCostMethod: (costMethod: CostMethod) => patch({ costMethod }),
       setSalePriceMode: (salePriceMode: SalePriceMode) => patch({ salePriceMode }),
       setMarkupBp: (markupBp: number) => patch({ markupBp }),
     }),
-    [settings, patch],
+    [settings, patch, patchAppearance],
   )
 
   if (!ready) return null

@@ -41,6 +41,8 @@
           }
           var dark = pref !== 'light' && (pref !== 'system' || window.matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+          var acc = JSON.parse(localStorage.getItem('anbardar.accent.v1') || '{}')[dark ? 'dark' : 'light'];
+          if (acc && acc !== 'purple') document.documentElement.setAttribute('data-accent', acc);
         } catch (e) {
           document.documentElement.setAttribute('data-theme', 'dark');
         }

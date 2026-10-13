@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS, type AppSettings } from '../models/settings'
 import { logger } from '../utils/logger'
 import { getApp } from './appContext'
-import { THEME_CACHE_KEY } from './legacySettingsMigration'
+import { ACCENT_CACHE_KEY, THEME_CACHE_KEY } from './legacySettingsMigration'
 
 export async function loadSettings(): Promise<AppSettings> {
   try {
@@ -16,14 +16,15 @@ export async function loadSettings(): Promise<AppSettings> {
 export async function updateSettings(current: AppSettings, patch: Partial<AppSettings>): Promise<AppSettings> {
   const next: AppSettings = { ...current, ...patch }
   await getApp().repos.settings.save(next)
-  cacheTheme(next.theme)
+  cacheTheme(next)
   return next
 }
 
 /** کش تم در localStorage فقط برای جلوگیری از چشمک هنگام شروع است؛ مرجع اصلی دیتابیس است */
-export function cacheTheme(theme: string): void {
+export function cacheTheme(settings: Pick<AppSettings, 'theme' | 'accentDark' | 'accentLight'>): void {
   try {
-    localStorage.setItem(THEME_CACHE_KEY, theme)
+    localStorage.setItem(THEME_CACHE_KEY, settings.theme)
+    localStorage.setItem(ACCENT_CACHE_KEY, JSON.stringify({ dark: settings.accentDark, light: settings.accentLight }))
   } catch {
     /* بی‌اهمیت */
   }

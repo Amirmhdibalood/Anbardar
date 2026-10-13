@@ -90,7 +90,7 @@ await shot(page, 'not-found-light')
 
 // ---- جدول «سیستم»: با ترجیح تیره‌ی سیستم تیره شود
 await page.goto(BASE + '#/more/settings', { waitUntil: 'networkidle0' })
-await clickRadio('سیستم')
+await clickRadio('مطابق سیستم')
 await settle(page)
 check('system option follows OS (dark emulated)', (await theme(page)) === 'dark')
 await page.close()

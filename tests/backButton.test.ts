@@ -18,3 +18,17 @@ test('بازگشت: خانه دو بار در ۲ ثانیه', () => {
   assert.equal(decideBack({ ...base, lastHomePress: 8_500 }), 'exit')
   assert.equal(decideBack({ ...base, lastHomePress: 7_000 }), 'arm-exit')
 })
+
+test('تم: فقط بنفش رایگان است و قفل فعلاً خاموش', async () => {
+  const { isPremiumAccent, isAccentLocked, PREMIUM_ACCENTS_LOCKED } = await import('../src/config/themes')
+  assert.equal(isPremiumAccent('purple'), false)
+  assert.equal(isPremiumAccent('gold'), true)
+  assert.equal(PREMIUM_ACCENTS_LOCKED, false)
+  assert.equal(isAccentLocked('gold'), false)
+})
+test('تنظیمات: رنگ نامعتبر ← بنفش', async () => {
+  const { sanitizeSettings } = await import('../src/models/settings')
+  const s = sanitizeSettings({ accentDark: 'neon', accentLight: 'teal' })
+  assert.equal(s.accentDark, 'purple')
+  assert.equal(s.accentLight, 'teal')
+})

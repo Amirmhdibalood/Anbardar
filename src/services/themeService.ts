@@ -1,8 +1,7 @@
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core'
-import type { ResolvedTheme, ThemePreference } from '../models/settings'
+import type { Accent, ResolvedTheme, ThemePreference } from '../models/settings'
 import { logger } from '../utils/logger'
 
-const THEME_COLORS: Record<ResolvedTheme, string> = { dark: '#0F0F14', light: '#F6F6FA' }
 
 function systemQuery(): MediaQueryList {
   return window.matchMedia('(prefers-color-scheme: dark)')
@@ -13,11 +12,14 @@ export function resolveTheme(preference: ThemePreference): ResolvedTheme {
   return preference
 }
 
-/** اعمال تم روی صفحه (data-theme) و نوار وضعیت اندروید */
-export function applyTheme(theme: ResolvedTheme): void {
+/** اعمال تم روی صفحه (data-theme + data-accent) و رنگ آیکون‌های نوار وضعیت/ناوبری اندروید */
+export function applyTheme(theme: ResolvedTheme, accent: Accent = 'purple'): void {
   const root = document.documentElement
   root.setAttribute('data-theme', theme)
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', THEME_COLORS[theme])
+  if (accent === 'purple') root.removeAttribute('data-accent')
+  else root.setAttribute('data-accent', accent)
+  const bg = getComputedStyle(root).getPropertyValue('--bg').trim()
+  if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg)
 
   if (Capacitor.isNativePlatform()) {
     SystemBars.setStyle({ style: theme === 'dark' ? SystemBarsStyle.Dark : SystemBarsStyle.Light }).catch((error) =>
@@ -31,4 +33,19 @@ export function watchSystemTheme(onChange: () => void): () => void {
   const query = systemQuery()
   query.addEventListener('change', onChange)
   return () => query.removeEventListener('change', onChange)
+}
+
+/** جابه‌جایی نرم بین تم‌ها (View Transitions اگر باشد؛ وگرنه transition موقت رنگ‌ها) */
+export function withThemeTransition(change: () => void): void {
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown }
+  if (reduce) return change()
+  if (doc.startViewTransition) {
+    doc.startViewTransition(change)
+    return
+  }
+  const root = document.documentElement
+  root.classList.add('theme-transition')
+  change()
+  window.setTimeout(() => root.classList.remove('theme-transition'), 450)
 }
