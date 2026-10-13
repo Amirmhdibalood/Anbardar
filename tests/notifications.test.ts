@@ -65,6 +65,7 @@ describe('stage 3: backup change detection', () => {
   it('no data = no prompt; change after backup = prompt; settings-only change ignored', async () => {
     const { hasChangesSinceBackup, LAST_BACKUP_SETTING } = await import('../src/services/backupChanges')
     const f = await setup()
+    assert.equal(await hasChangesSinceBackup(f.db), false, 'fresh install (seed only) = no prompt')
     await f.repos.settings.setValue(LAST_BACKUP_SETTING, '2999-01-01T00:00:00.000Z')
     assert.equal(await hasChangesSinceBackup(f.db), false)
     await f.repos.settings.setValue(LAST_BACKUP_SETTING, new Date().toISOString())

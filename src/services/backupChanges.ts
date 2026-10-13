@@ -28,5 +28,9 @@ export async function hasChangesSinceBackup(db: SqlExecutor): Promise<boolean> {
   const last = (await db.get<{ value: string | null }>('SELECT value FROM settings WHERE key = ?', [LAST_BACKUP_SETTING]))?.value ?? null
   const changed = await latestDataChangeAt(db)
   if (!changed) return false
-  return !last || changed > last
+  if (last) return changed > last
+  // هرگز پشتیبان گرفته نشده: داده‌های اولیه (Seed) تغییر حساب نمی‌شوند؛ مبنا = زمان نصب + چند ثانیه
+  const seed = (await db.get<{ m: string | null }>('SELECT MIN(applied_at) AS m FROM schema_migrations'))?.m
+  if (!seed) return true
+  return changed > new Date(Date.parse(seed) + 10_000).toISOString()
 }

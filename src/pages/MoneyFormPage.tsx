@@ -5,6 +5,7 @@ import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { Field, MoneyInput, TextArea, TextInput } from '../components/Field'
 import { JalaliDatePicker } from '../components/JalaliDatePicker'
+import { HelpTip } from '../components/HelpTip'
 import { PageHeader } from '../components/PageHeader'
 import { Picker } from '../components/Picker'
 import { SegmentedControl } from '../components/SegmentedControl'
@@ -181,7 +182,10 @@ export default function MoneyFormPage() {
         {method === 'cheque' && (
           <Card>
             <div className={styles.alloc} data-testid="cheque-fields">
-              <strong>مشخصات چک {kind === 'receipt' ? 'دریافتی' : 'پرداختی'}</strong>
+              <strong>
+                مشخصات چک {kind === 'receipt' ? 'دریافتی' : 'پرداختی'}
+                <HelpTip title="ثبت چک" text="شماره چک، بانک و تاریخ سررسید را دقیق وارد کنید. چند روز مانده به سررسید، چک در «اعلان‌ها» (زنگ بالای صفحه) و صفحه اصلی نشان داده می‌شود. بعد از وصول یا برگشت، وضعیت چک را از صفحه «چک‌ها» تغییر دهید." />
+              </strong>
               <Field label="شماره چک" required htmlFor="cheque-no" error={errors['cheque.number']}>
                 <TextInput id="cheque-no" value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} inputMode="numeric" autoComplete="off" maxLength={30} invalid={!!errors['cheque.number']} />
               </Field>

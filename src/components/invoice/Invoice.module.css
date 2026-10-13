@@ -371,6 +371,13 @@
 }
 .modeSwitch {
   padding-bottom: 2px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.modeSwitch > :first-child {
+  flex: 1;
+  min-width: 0;
 }
 .chargesCard {
   margin-top: 12px;

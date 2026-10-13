@@ -6,6 +6,7 @@ import { getStock } from '../../services/appContext'
 import { draftToInput, draftTotals, isFutureDay, lineError, lineUnit, loadPriceMode, mapServiceErrors, savePriceMode, stepQuantity, type ChargeDraft, type DraftInput, type InvoiceDraft, type LineDraft } from '../../services/invoiceForm'
 import type { LandedMethod, PriceMode } from '../../models/invoice'
 import { newRequestId } from '../../services/requestKey'
+import { HelpTip } from '../HelpTip'
 import { SegmentedControl } from '../SegmentedControl'
 import { toPersianDigits } from '../../utils/persian'
 import { toUserMessage } from '../../utils/errors'
@@ -298,6 +299,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           { value: 'total', label: 'مبلغ کل' },
                         ]}
                       />
+                      <HelpTip title="قیمت واحد یا مبلغ کل؟" text="«قیمت واحد»: قیمت هر عدد/کیلو را وارد کنید تا در تعداد ضرب شود. «مبلغ کل»: جمع پولی که برای این ردیف داده‌اید را وارد کنید (مثلاً کل یک کارتن)؛ برنامه قیمت هر واحد را خودش حساب می‌کند. انتخاب شما برای خریدهای بعدی یادش می‌ماند." />
                     </div>
                   )}
                 </div>
@@ -357,7 +359,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         {kind === 'purchase' && (
           <div className={styles.chargesCard} data-testid="charges">
             <div className={styles.chargesHead}>
-              <strong>هزینه‌های جانبی</strong>
+              <strong>
+                هزینه‌های جانبی
+                <HelpTip title="هزینه‌های جانبی خرید" text="کرایه حمل، باربری، بیمه و مانند آن را اینجا بنویسید. این مبلغ بین کالاهای فاکتور (به نسبت مبلغ یا تعداد) پخش می‌شود و بهای تمام‌شده و سود را درست می‌کند، اما به بدهی تأمین‌کننده اضافه نمی‌شود." />
+              </strong>
               <span>حمل، بیمه، باربری… — به بهای کالا اضافه می‌شود، نه به بدهی تأمین‌کننده</span>
             </div>
             {charges.map((c, i) => (
