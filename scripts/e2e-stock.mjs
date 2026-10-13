@@ -215,6 +215,9 @@ async function run(theme) {
   await shot('products-with-stock')
   await go('#/')
   check(t('home low-stock card shows ۲'), /کم‌موجودی\s*۲/.test(await body()))
+  // بنرهای شناور (مثلاً هشدار پشتیبان) روی کارت‌ها می‌نشینند؛ مثل کاربر اول بسته می‌شوند
+  await page.$$eval('[data-testid="banner-close"]', (bs) => bs.forEach((b) => b.click()))
+  await settle(400)
   await clickText('کم‌موجودی')
   await settle(500)
   check(t('home low-stock card opens the attention filter'), page.url().includes('#/stock') && page.url().includes('f=low'))
