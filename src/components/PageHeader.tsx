@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { BACK_BUTTON_SIDE } from '../config/ui'
 import { Icon } from './Icon'
 import styles from './PageHeader.module.css'
-import { ThemeLamp } from './ThemeLamp'
+import { TopTools } from './TopTools'
 
 interface Props {
   title: string
@@ -42,7 +42,7 @@ export function PageHeader({ title, backTo, onBack, actions }: Props) {
     </Link>
   ) : (
     /* صفحه‌های اصلی (بدون بازگشت): چراغ تم در همان جای دکمه بازگشت */
-    <ThemeLamp />
+    <TopTools />
   )
 
   return (

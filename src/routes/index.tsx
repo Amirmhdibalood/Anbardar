@@ -33,6 +33,7 @@ const routes: RouteObject[] = [
           { path: 'purchases/:id', ...page(() => import('../pages/PurchaseDetailPage')) },
           { path: 'sales', ...page(() => import('../pages/SalesPage')) },
           { path: 'sales/:id', ...page(() => import('../pages/SaleDetailPage')) },
+          { path: 'notifications', ...page(() => import('../pages/NotificationsPage')) },
           { path: 'more/price-calculator', ...page(() => import('../pages/PriceCalculatorPage')) },
           { path: 'more/expenses', ...page(() => import('../pages/ExpensesPage')) },
           { path: 'more/customers', ...page(() => import('../pages/CustomersPage')) },

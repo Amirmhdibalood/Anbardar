@@ -15,7 +15,7 @@ import { getBackupInfo } from '../services/backupService'
 import { MONEY_UNIT, formatMoney } from '../utils/money'
 import { formatPersianDate, formatPersianDateTime } from '../utils/date'
 import { formatInteger, toPersianDigits } from '../utils/persian'
-import { ThemeLamp } from '../components/ThemeLamp'
+import { TopTools } from '../components/TopTools'
 import styles from './HomePage.module.css'
 import list from './money/Money.module.css'
 
@@ -38,7 +38,7 @@ export default function HomePage() {
           <p className={styles.date}>{formatPersianDate()}</p>
           <h1 className={styles.hello}>سلام 👋</h1>
         </div>
-        <ThemeLamp />
+        <TopTools />
       </header>
 
       {backup?.reminderEnabled && backup.isStale && (

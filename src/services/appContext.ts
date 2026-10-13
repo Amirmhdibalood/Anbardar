@@ -9,6 +9,7 @@ import { createSaleService } from './saleService'
 import { createExpenseService } from './expenseService'
 import { createMoneyService } from './moneyService'
 import { createChequeService } from './chequeService'
+import { createNotificationService } from './notificationService'
 import { createReportService } from './reportService'
 import { createReturnService, createTransferService } from './returnService'
 import { AppError } from '../utils/errors'
@@ -125,3 +126,14 @@ export function getCheques(): ReturnType<typeof createChequeService> {
   chequeService ??= createChequeService(getApp().db)
   return chequeService
 }
+
+let notificationService: ReturnType<typeof createNotificationService> | null = null
+
+export function getNotifications(): ReturnType<typeof createNotificationService> {
+  notificationService ??= createNotificationService(getApp().db)
+  return notificationService
+}
+
+/** رویداد «داده تغییر کرد / اعلان خوانده شد» برای تازه‌کردن نشان زنگ */
+export const NOTIFY_EVENT = 'anbardar:notifications'
+export const pingNotifications = () => window.dispatchEvent(new Event(NOTIFY_EVENT))

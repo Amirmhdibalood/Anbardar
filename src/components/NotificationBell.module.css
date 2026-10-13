@@ -1,0 +1,42 @@
+.bell {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  color: var(--muted);
+  text-decoration: none;
+  transition: transform 0.15s;
+}
+.bell:active {
+  transform: scale(0.92);
+}
+.bell:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.badge {
+  position: absolute;
+  top: -3px;
+  inset-inline-start: -3px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--error);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 19px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
