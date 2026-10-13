@@ -60,3 +60,20 @@ describe('stage 3: notifications', () => {
     assert.ok(!stored.includes(id), 'the old low id was pruned')
   })
 })
+
+describe('stage 3: backup change detection', () => {
+  it('no data = no prompt; change after backup = prompt; settings-only change ignored', async () => {
+    const { hasChangesSinceBackup, LAST_BACKUP_SETTING } = await import('../src/services/backupChanges')
+    const f = await setup()
+    await f.repos.settings.setValue(LAST_BACKUP_SETTING, '2999-01-01T00:00:00.000Z')
+    assert.equal(await hasChangesSinceBackup(f.db), false)
+    await f.repos.settings.setValue(LAST_BACKUP_SETTING, new Date().toISOString())
+    await f.repos.settings.setValue('notifications_read', '[]')
+    assert.equal(await hasChangesSinceBackup(f.db), false, 'settings changes are not data changes')
+    await new Promise((r) => setTimeout(r, 5))
+    await f.catalog.products.create({ name: 'تازه', groupId: f.groupId })
+    assert.equal(await hasChangesSinceBackup(f.db), true)
+    await f.repos.settings.setValue(LAST_BACKUP_SETTING, new Date(Date.now() + 1000).toISOString())
+    assert.equal(await hasChangesSinceBackup(f.db), false)
+  })
+})

@@ -148,3 +148,12 @@
 .chequeBanner svg {
   color: var(--warning);
 }
+
+.introCard { cursor: default; }
+.introBody { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.introBody strong { font-size: 14px; }
+.introActions { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.introPrimary,
+.introDismiss { padding: 8px 14px; border-radius: 10px; font-size: 13px; font-weight: 700; text-decoration: none; }
+.introPrimary { background: var(--accent); color: #fff; }
+.introDismiss { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); }

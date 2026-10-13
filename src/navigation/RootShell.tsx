@@ -1,7 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Capacitor } from '@capacitor/core'
+import { Button } from '../components/Button'
+import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
+import { getApp } from '../services/appContext'
+import { hasChangesSinceBackup } from '../services/backupChanges'
+import { shareBackup } from '../services/backupService'
 import { EXIT_TOAST, decideBack } from './backButton'
 
 /** رویداد آزمایشی برای شبیه‌سازی دکمه بازگشت در مرورگر/تست */
@@ -30,6 +35,9 @@ export function RootShell() {
   useEffect(() => {
     state.current = { pathname: location.pathname, key: location.key }
   }, [location])
+
+  const [exitPrompt, setExitPrompt] = useState(false)
+  const [backingUp, setBackingUp] = useState(false)
 
   useEffect(() => {
     const onBack = () => {
@@ -61,8 +69,10 @@ export function RootShell() {
           toast.show(EXIT_TOAST)
           break
         case 'exit':
-          if (Capacitor.isNativePlatform()) void import('@capacitor/app').then(({ App }) => App.exitApp())
-          else window.dispatchEvent(new Event(EXIT_EVENT))
+          // اگر از آخرین پشتیبان چیزی تغییر کرده، قبل از خروج پیشنهاد پشتیبان بده
+          void hasChangesSinceBackup(getApp().db)
+            .catch(() => false)
+            .then((changed) => (changed ? setExitPrompt(true) : exitNow()))
           break
       }
       if (action !== 'arm-exit' && action !== 'exit') lastHome.current = null
@@ -119,5 +129,43 @@ export function RootShell() {
     }
   }, [])
 
-  return <Outlet />
+  const backupAndExit = async () => {
+    setBackingUp(true)
+    try {
+      await shareBackup()
+      setExitPrompt(false)
+      exitNow()
+    } catch {
+      toast.show('پشتیبان‌گیری انجام نشد؛ دوباره تلاش کنید.')
+    } finally {
+      setBackingUp(false)
+    }
+  }
+
+  return (
+    <>
+      <Outlet />
+      <Sheet open={exitPrompt} title="قبل از خروج پشتیبان بگیرید؟" onClose={() => setExitPrompt(false)}>
+        <div data-testid="exit-backup-sheet" style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingBottom: 8 }}>
+          <p style={{ margin: 0, lineHeight: 1.9, color: 'var(--muted)' }}>
+            از آخرین نسخه پشتیبان، اطلاعات فروشگاه تغییر کرده است. اگر گوشی گم یا خراب شود، فقط با فایل پشتیبان می‌توانید اطلاعات را برگردانید.
+          </p>
+          <Button block icon="shield" loading={backingUp} onClick={() => void backupAndExit()} data-testid="exit-backup">
+            پشتیبان و خروج
+          </Button>
+          <Button block variant="secondary" disabled={backingUp} onClick={() => { setExitPrompt(false); exitNow() }} data-testid="exit-no-backup">
+            خروج بدون پشتیبان
+          </Button>
+          <Button block variant="ghost" disabled={backingUp} onClick={() => setExitPrompt(false)} data-testid="exit-stay">
+            ماندن در برنامه
+          </Button>
+        </div>
+      </Sheet>
+    </>
+  )
+}
+
+function exitNow() {
+  if (Capacitor.isNativePlatform()) void import('@capacitor/app').then(({ App }) => App.exitApp())
+  else window.dispatchEvent(new Event(EXIT_EVENT))
 }
