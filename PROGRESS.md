@@ -223,3 +223,24 @@ User explicitly confirmed: ADD «ثبت هزینه» (expense entry). Proceed wi
   - Licenses are in `public/licenses/*-OFL.txt`.
   - The choice is applied app-wide through `--font` / `html[data-font]`, persisted (settings key `font`) and cached for cold start, with a live preview line.
   - Test: `scripts/e2e-fonts.mjs` (20 checks: Persian digits come from each font, and invoice numbers are neither clipped nor wrapped).
+
+## v1.2.0 (versionCode 7): stage 2
+Design note: `docs/stage2-units-landed-cheques.md`. Migration 007 (snapshot taken first, FK-checked, verified on a real populated v5→v7 database).
+- **Sub-units per product** (e.g. کارتن = ۲۴ عدد):
+  - Defined on the product form (up to 5). The ledger and stock always use the base unit.
+  - Any defined unit on purchase, sale, return and opening-stock lines.
+  - Exact integer math (milli-units): base = qty × factor / 1000 must be exact (max 3 decimals); integer-only units stay integer in both the line unit and the base.
+  - Prices are per line unit. A factor is changeable only while unused (DB trigger `sub_unit_locked`).
+- **قیمت واحد / مبلغ کل** toggle on purchase lines and opening stock:
+  - Total mode stores the entered total exactly (lot cost = total − discount share + landed share, no FIFO drift). The unit price is display-only, rounded half-up.
+  - Live counterpart: «هر کارتن ≈ ۳۳,۳۳۳» / «جمع: ...». The last choice is remembered (`anbardar.priceMode.v1`).
+- **Landed costs on purchases** (حمل، بیمه، ...):
+  - Allocated by value (default) or by base quantity, largest-remainder exact, into the cost lots, so FIFO / average / profit include them.
+  - Not part of the supplier payable. Cancel reverses the lots cleanly. Shown on the detail page (per-line share + charges list).
+- **Cheques:**
+  - Received / issued, with number, bank (Picker + custom), due date, and status در جریان / وصول / برگشتی / خرج‌شده.
+  - `/cheques` due list (More menu) with filters and totals, and a Home banner for cheques due within 7 days.
+  - Bounce cancels the cheque's money document, re-opening the debt. Spend creates a payment to another party (auto-allocated); bouncing a spent cheque cancels both.
+- Tests:
+  - `tests/stage2.test.ts`: rounding (100,000 / 3), allocation, units, price mode, landed, cheques, migration, backup round-trip, form.
+  - `scripts/e2e-stage2.mjs` (50 checks, both themes), added to `walkthrough.sh`.

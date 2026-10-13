@@ -61,11 +61,11 @@ export default function ChequesPage() {
         <Card>
           <div className={styles.totals} data-testid="cheque-totals">
             <div>
-              <span>چک‌های دریافتی در جریان</span>
+              <span>دریافتی در جریان</span>
               <strong>{formatMoney(pendingReceived)}</strong>
             </div>
             <div>
-              <span>چک‌های پرداختی در جریان</span>
+              <span>پرداختی در جریان</span>
               <strong>{formatMoney(pendingIssued)}</strong>
             </div>
           </div>

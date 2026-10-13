@@ -2,7 +2,7 @@
 # اجرای همه مجموعه‌های e2e روی ماتریس دستگاه‌ها (اندازه × نوار ناوبری × صفحه‌کلید) به‌صورت موازی.
 # نیاز: npx vite preview --port 4173 --host 0.0.0.0
 cd "$(dirname "$0")/.."
-SUITES="intro polish products purchases sales money returns stock reports backup picker theme fonts"
+SUITES="intro polish products purchases sales money returns stock reports backup picker theme fonts stage2"
 CONFIGS=(${CONFIGS_OVERRIDE:-"360x780 3btn closed" "360x780 gesture open" "412x915 3btn open" "412x915 gesture closed"})
 mkdir -p /tmp/walk
 for c in "${CONFIGS[@]}"; do

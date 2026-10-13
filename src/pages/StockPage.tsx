@@ -503,7 +503,7 @@ function AdjustSheet({
             required
             htmlFor="adj-cost"
             error={errors['unitCost']}
-            hint={openingCost != null ? `جمع: ${formatMoney(openingCost)} تومان` : info?.suggested ? 'پیش‌فرض: قیمت آخرین خرید این کالا.' : undefined}
+            hint={openingCost != null ? `جمع: ${formatMoney(openingCost)}` : info?.suggested ? 'پیش‌فرض: قیمت آخرین خرید این کالا.' : undefined}
           >
             <MoneyInput
               id="adj-cost"
@@ -524,7 +524,7 @@ function AdjustSheet({
             required
             htmlFor="adj-total"
             error={errors['totalCost']}
-            hint={totalCost !== null && delta !== null && delta > 0 ? `هر ${ou.name} ≈ ${formatMoney(unitPriceFromTotal(totalCost, Math.max(1, mulDivRound(delta, 1000, ou.factor))))} تومان` : undefined}
+            hint={totalCost !== null && delta !== null && delta > 0 ? `هر ${ou.name} ≈ ${formatMoney(unitPriceFromTotal(totalCost, Math.max(1, mulDivRound(delta, 1000, ou.factor))))}` : undefined}
           >
             <MoneyInput
               id="adj-total"

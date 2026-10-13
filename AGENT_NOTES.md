@@ -59,3 +59,10 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
 - Theme: `models/settings.ts` (ACCENTS, accentDark/accentLight) and `config/themes.ts` (ACCENT_META, FREE_ACCENTS, PREMIUM_ACCENTS_LOCKED).
 - Applying it: `services/themeService.ts` applyTheme(mode, accent) and withThemeTransition. CSS tokens live in `styles/themes.css` (`[data-theme][data-accent]`).
 - UI: `pages/settings/AppearanceSettings.tsx` and `components/ThemeLamp.tsx`. PageHeader renders the lamp when a page has no back button.
+
+## v1.2.0: stage 2 (units, price mode, landed, cheques)
+- Math: `utils/invoiceMath.ts` (prepareInvoice with `factorOf` + `landed`; allocateExact; toBaseQuantity; unitPriceFromTotal).
+- Line/unit checks: `services/lineUnits.ts` (checkLines, factorFor, unitLabel). The client never sends the factor; the server resolves it from `product.subUnits`.
+- `InvoiceItemInput.quantity` is in the line unit; `InvoiceItem.quantity` is always base (`unitQuantity` / `unitFactor` / `unitId` hold the entered unit).
+- Cheques: `services/chequeService.ts` (clear / bounce / spend, list / dueUntil), plus `moneyService.create({ method: 'cheque', cheque })`. UI: `components/ChequeActions.tsx` and `pages/ChequesPage.tsx`.
+- DB triggers referencing the items tables must be dropped/recreated around a table rebuild (sqlite rename check).

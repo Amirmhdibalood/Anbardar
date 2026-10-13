@@ -49,5 +49,17 @@ Scope is deliberately kept tight. Everything below is enforced by Migration 007 
   - **Spend** (pending received cheque handed to a supplier): creates a payment document (method cheque, source manual) for the same amount to the chosen supplier, auto-allocated oldest-first. The cheque becomes خرج‌شده.
     - If a spent cheque bounces, **both** documents are cancelled: the customer owes us again, and we owe the supplier again.
   - **Clear:** status only.
-  - Manual cancel of a cheque document is allowed only while the cheque is در جریان, and it marks the cheque void.
+  - Manual cancel of a cheque document is allowed only while the cheque is در جریان. The cheque keeps its 4-status model (no extra «void» status); a cheque whose document is cancelled simply drops out of every list and the due-date banner.
+  - A spend payment cannot be cancelled by hand while the cheque is «خرج‌شده»; the way back is «برگشت خورد», which cancels both documents.
+  - Clear (وصول) is allowed from در جریان and from خرج‌شده (the receiver cashed it). Once وصول or برگشتی, the status is final (DB trigger).
 - **Due-date list** (`/cheques`): received/issued tabs, status filter, sorted by due date, overdue and «۷ روز آینده» badges, and actions in a sheet. Home shows a banner when cheques are due within 7 days.
+
+
+## Implementation notes (as built in v1.2.0)
+- Migration 007 temporarily drops `trg_products_unit_locked` (it references the items tables) while rebuilding `sales_items` / `purchase_items`, then recreates it, now also locking the base unit while active sub-units exist. `trg_product_units_immutable` is created after the rebuild for the same reason.
+- Sub-unit trigger code is `sub_unit_locked` (mapped to a field error on «واحدهای فرعی»), distinct from the base-unit `unit_locked`.
+- `lastUnitPrice` is returned per **base** unit (gross × 1000 / base quantity, rounded); the editor converts suggestions to the chosen unit (× factor / 1000).
+- Returns accept the invoice line's unit or the base unit; refunds stay proportional to the original line (no re-pricing).
+- Opening stock: in sub-unit mode `totalCost = delta_base × unitCost / factor` (one rounding); in total mode the entered total is the lot cost exactly.
+- Landed allocation: largest-remainder by net line value (after invoice discount); falls back to quantity if all values are 0. Shares are not capped (landed may exceed the supplier price).
+- Cheques only come from manual receipts/payments (method «چک»); automatic payments created with an invoice remain cash-like, by design (scope).

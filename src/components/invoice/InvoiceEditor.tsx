@@ -243,10 +243,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           const perUnit = totals.lineUnitPrices[line.key]
           const counterpart = total
             ? perUnit != null
-              ? `هر ${unit.name} ≈ ${formatMoney(perUnit)} تومان`
+              ? `هر ${unit.name} ≈ ${formatMoney(perUnit)}`
               : undefined
             : kind === 'purchase' && gross != null && gross > 0
-              ? `جمع: ${formatMoney(gross)} تومان`
+              ? `جمع: ${formatMoney(gross)}`
               : undefined
           const lineTotal = totals.lineTotals[line.key]
           const inStock = stock?.get(line.product.id) ?? 0
