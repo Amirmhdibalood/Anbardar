@@ -3,13 +3,15 @@ import type { Product, Warehouse } from '../../models/catalog'
 import type { Customer, PartyInput, Supplier } from '../../models/party'
 import { useAsync } from '../../hooks/useAsync'
 import { getStock } from '../../services/appContext'
-import { draftToInput, draftTotals, isFutureDay, lineError, mapServiceErrors, stepQuantity, type DraftInput, type InvoiceDraft, type LineDraft } from '../../services/invoiceForm'
+import { draftToInput, draftTotals, isFutureDay, lineError, lineUnit, loadPriceMode, mapServiceErrors, savePriceMode, stepQuantity, type ChargeDraft, type DraftInput, type InvoiceDraft, type LineDraft } from '../../services/invoiceForm'
+import type { LandedMethod, PriceMode } from '../../models/invoice'
+import { SegmentedControl } from '../SegmentedControl'
 import { toPersianDigits } from '../../utils/persian'
 import { toUserMessage } from '../../utils/errors'
 import { toJalali } from '../../utils/jalali'
 import { formatMoney } from '../../utils/money'
 import { formatInteger } from '../../utils/persian'
-import { formatQuantityWithUnit, quantityToInputText, QUANTITY_SCALE } from '../../utils/quantity'
+import { formatQuantityWithUnit, parseQuantityInput, quantityToInputText, QUANTITY_SCALE } from '../../utils/quantity'
 import { Button } from '../Button'
 import { ConfirmSheet } from '../ConfirmSheet'
 import { Field, MoneyInput, QuantityInput, TextInput } from '../Field'
@@ -65,7 +67,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     lines: [],
     payMode: 'full',
     paid: '',
+    ...(props.kind === 'purchase' ? { charges: [], landedMethod: 'value' as LandedMethod } : {}),
   }))
+  /** قیمت پیشنهادی هر ردیف به ازای «واحد پایه» (برای تبدیل هنگام عوض کردن واحد) */
+  const [basePrices, setBasePrices] = useState<Record<string, number | null>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -98,7 +103,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     setPicker(false)
     const key = `l${++keySeq}`
     const price = await props.suggestPrice(product).catch(() => null)
-    setDraft((d) => ({ ...d, lines: [...d.lines, { key, product, quantity: quantityToInputText(QUANTITY_SCALE), unitPrice: price ? formatInteger(price) : '', discount: '' }] }))
+    setBasePrices((b) => ({ ...b, [key]: price }))
+    const priceMode: PriceMode = kind === 'purchase' ? loadPriceMode() : 'unit'
+    setDraft((d) => ({
+      ...d,
+      lines: [...d.lines, { key, product, quantity: quantityToInputText(QUANTITY_SCALE), unitPrice: price ? formatInteger(price) : '', discount: '', unitId: null, priceMode, amount: '' }],
+    }))
     setErrors((e) => {
       const next = { ...e }
       delete next['items']
@@ -124,6 +134,39 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     } finally {
       setSaving(false)
     }
+  }
+
+  const changeUnit = (line: LineDraft, unitId: string) => {
+    const next = { ...line, unitId: unitId === line.product.unitId ? null : unitId }
+    const u = lineUnit(next)
+    const base = basePrices[line.key]
+    const patch: Partial<LineDraft> = { unitId: next.unitId }
+    // قیمت پیشنهادی را به واحد جدید تبدیل کن (اگر کاربر قیمت را دستی عوض نکرده باشد هم فقط پیشنهاد است)
+    if (base != null) patch.unitPrice = formatInteger(Math.round((base * u.factor) / 1000))
+    if (!u.allowsFraction) {
+      const r = parseQuantityInput(line.quantity, true)
+      const whole = r.ok ? Math.round(r.value / QUANTITY_SCALE) : 1
+      patch.quantity = quantityToInputText(Math.max(1, whole) * QUANTITY_SCALE)
+    }
+    updateLine(line.key, patch)
+  }
+  const changeMode = (line: LineDraft, mode: PriceMode) => {
+    savePriceMode(mode)
+    const t = totals.lineGross[line.key]
+    const patch: Partial<LineDraft> = { priceMode: mode }
+    // مقدار فعلی را به حالت جدید ببر تا کاربر چیزی از دست ندهد
+    if (mode === 'total' && t != null && t > 0 && !line.amount) patch.amount = formatInteger(t)
+    if (mode === 'unit' && totals.lineUnitPrices[line.key] != null && line.unitPrice.trim() === '') patch.unitPrice = formatInteger(totals.lineUnitPrices[line.key]!)
+    updateLine(line.key, patch)
+  }
+  const charges = draft.charges ?? []
+  const updateCharge = (key: string, patch: Partial<ChargeDraft>) => {
+    update({ charges: charges.map((c) => (c.key === key ? { ...c, ...patch } : c)) })
+    setErrors((e) => {
+      const next = { ...e }
+      for (const f of Object.keys(patch)) delete next[`charge:${key}:${f}`]
+      return next
+    })
   }
 
   const back = () => (draft.lines.length > 0 ? setConfirmLeave(true) : props.onBack())
@@ -189,10 +232,22 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
         {draft.lines.map((line) => {
           const q = errors[lineError(line.key, 'quantity')]
-          const p = errors[lineError(line.key, 'unitPrice')]
+          const total = line.priceMode === 'total'
+          const p = errors[lineError(line.key, total ? 'amount' : 'unitPrice')] ?? errors[lineError(line.key, 'unitPrice')]
           const d = errors[lineError(line.key, 'discount')]
-          const prod = errors[lineError(line.key, 'product')]
+          const prod = errors[lineError(line.key, 'product')] ?? errors[lineError(line.key, 'unit')]
           const invalid = !!(q || p || d || prod)
+          const unit = lineUnit(line)
+          const subUnits = (line.product.subUnits ?? []).filter((u) => u.isActive)
+          const gross = totals.lineGross[line.key]
+          const perUnit = totals.lineUnitPrices[line.key]
+          const counterpart = total
+            ? perUnit != null
+              ? `هر ${unit.name} ≈ ${formatMoney(perUnit)} تومان`
+              : undefined
+            : kind === 'purchase' && gross != null && gross > 0
+              ? `جمع: ${formatMoney(gross)} تومان`
+              : undefined
           const lineTotal = totals.lineTotals[line.key]
           const inStock = stock?.get(line.product.id) ?? 0
           const showDiscount = openDiscounts.has(line.key) || line.discount !== '' || !!d
@@ -209,21 +264,58 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   <Icon name="x" size={16} />
                 </button>
               </div>
+              {(subUnits.length > 0 || kind === 'purchase') && (
+                <div className={styles.lineOptions}>
+                  {subUnits.length > 0 && (
+                    <Field label="واحد" htmlFor={`u-${line.key}`}>
+                      <Picker
+                        id={`u-${line.key}`}
+                        title={`واحد «${line.product.name}»`}
+                        value={unit.id}
+                        onChange={(v) => changeUnit(line, v)}
+                        options={[
+                          { value: line.product.unitId, label: line.product.unitName, description: 'واحد اصلی' },
+                          ...subUnits.map((u) => ({ value: u.unitId, label: u.unitName, description: `${formatQuantityWithUnit(u.factor, line.product.unitName)}` })),
+                        ]}
+                      />
+                    </Field>
+                  )}
+                  {kind === 'purchase' && (
+                    <div className={styles.modeSwitch} data-testid={`mode-${line.key}`}>
+                      <SegmentedControl<PriceMode>
+                        label="نوع قیمت"
+                        value={line.priceMode ?? 'unit'}
+                        onChange={(m) => changeMode(line, m)}
+                        options={[
+                          { value: 'unit', label: 'قیمت واحد' },
+                          { value: 'total', label: 'مبلغ کل' },
+                        ]}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               <div className={styles.lineGrid}>
-                <Field label={`تعداد (${line.product.unitName})`} htmlFor={`q-${line.key}`} error={q}>
+                <Field label={`تعداد (${unit.name})`} htmlFor={`q-${line.key}`} error={q}>
                   <div className={styles.stepper}>
-                    <button type="button" aria-label="کم کردن" onClick={() => updateLine(line.key, { quantity: stepQuantity(line.quantity, line.product, -1) })}>
+                    <button type="button" aria-label="کم کردن" onClick={() => updateLine(line.key, { quantity: stepQuantity(line.quantity, line.product, -1, unit.allowsFraction) })}>
                       −
                     </button>
                     <QuantityInput id={`q-${line.key}`} value={line.quantity} onChange={(v) => updateLine(line.key, { quantity: v })} invalid={!!q} />
-                    <button type="button" aria-label="زیاد کردن" onClick={() => updateLine(line.key, { quantity: stepQuantity(line.quantity, line.product, 1) })}>
+                    <button type="button" aria-label="زیاد کردن" onClick={() => updateLine(line.key, { quantity: stepQuantity(line.quantity, line.product, 1, unit.allowsFraction) })}>
                       +
                     </button>
                   </div>
                 </Field>
-                <Field label="قیمت واحد (تومان)" htmlFor={`p-${line.key}`} error={p} hint={props.priceHint?.(line.product)}>
-                  <MoneyInput id={`p-${line.key}`} value={line.unitPrice} onChange={(v) => updateLine(line.key, { unitPrice: v })} invalid={!!p} placeholder="قیمت" />
-                </Field>
+                {total ? (
+                  <Field label="مبلغ کل ردیف (تومان)" htmlFor={`a-${line.key}`} error={p} hint={counterpart}>
+                    <MoneyInput id={`a-${line.key}`} value={line.amount ?? ''} onChange={(v) => updateLine(line.key, { amount: v })} invalid={!!p} placeholder="مبلغ کل" />
+                  </Field>
+                ) : (
+                  <Field label={`قیمت هر ${unit.name} (تومان)`} htmlFor={`p-${line.key}`} error={p} hint={counterpart ?? props.priceHint?.(line.product)}>
+                    <MoneyInput id={`p-${line.key}`} value={line.unitPrice} onChange={(v) => updateLine(line.key, { unitPrice: v })} invalid={!!p} placeholder="قیمت" />
+                  </Field>
+                )}
               </div>
               {showDiscount ? (
                 <Field label="تخفیف این ردیف (تومان)" htmlFor={`d-${line.key}`} error={d}>
@@ -253,6 +345,45 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           <p className={styles.lineError} role="alert">
             {errors['items']}
           </p>
+        )}
+
+        {kind === 'purchase' && (
+          <div className={styles.chargesCard} data-testid="charges">
+            <div className={styles.chargesHead}>
+              <strong>هزینه‌های جانبی</strong>
+              <span>حمل، بیمه، باربری… — به بهای کالا اضافه می‌شود، نه به بدهی تأمین‌کننده</span>
+            </div>
+            {charges.map((c, i) => (
+              <div key={c.key} className={styles.chargeRow}>
+                <Field label={`عنوان ${toPersianDigits(i + 1)}`} htmlFor={`ct-${c.key}`} error={errors[`charge:${c.key}:title`]}>
+                  <TextInput id={`ct-${c.key}`} value={c.title} onChange={(e) => updateCharge(c.key, { title: e.target.value })} placeholder="مثلاً کرایه حمل" maxLength={60} autoComplete="off" />
+                </Field>
+                <Field label="مبلغ (تومان)" htmlFor={`ca-${c.key}`} error={errors[`charge:${c.key}:amount`]}>
+                  <MoneyInput id={`ca-${c.key}`} value={c.amount} onChange={(v) => updateCharge(c.key, { amount: v })} invalid={!!errors[`charge:${c.key}:amount`]} placeholder="۰" />
+                </Field>
+                <button type="button" className={styles.remove} aria-label={`حذف هزینه ${toPersianDigits(i + 1)}`} onClick={() => update({ charges: charges.filter((x) => x.key !== c.key) })}>
+                  <Icon name="x" size={16} />
+                </button>
+              </div>
+            ))}
+            {charges.length > 0 && (
+              <Field label="تسهیم بین کالاها" htmlFor="inv-landed">
+                <Picker<LandedMethod>
+                  id="inv-landed"
+                  title="روش تسهیم هزینه‌ها"
+                  value={draft.landedMethod ?? 'value'}
+                  onChange={(v) => update({ landedMethod: v })}
+                  options={[
+                    { value: 'value', label: 'به نسبت ارزش', description: 'کالای گران‌تر سهم بیشتری می‌گیرد (پیشنهادی)' },
+                    { value: 'quantity', label: 'به نسبت تعداد', description: 'بر اساس تعداد به واحد اصلی هر کالا' },
+                  ]}
+                />
+              </Field>
+            )}
+            <button type="button" className={styles.linkButton} onClick={() => update({ charges: [...charges, { key: `c${++keySeq}`, title: '', amount: '' }] })}>
+              + افزودن هزینه جانبی
+            </button>
+          </div>
         )}
 
         <div className={styles.discountCard}>
@@ -301,6 +432,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             <div className={styles.subRow}>
               <span>جمع ردیف‌ها {formatMoney(totals.subtotal)}</span>
               <span>تخفیف {formatMoney(totals.discount)}</span>
+            </div>
+          )}
+          {totals.landedTotal > 0 && (
+            <div className={styles.subRow}>
+              <span>هزینه‌های جانبی {formatMoney(totals.landedTotal)}</span>
+              <span>جزو مبلغ قابل پرداخت نیست</span>
             </div>
           )}
           <div className={styles.totalRow}>

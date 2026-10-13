@@ -96,7 +96,14 @@ export default function SaleDetailPage() {
               </div>
               <div className={styles.itemMeta}>
                 <span>
-                  {formatQuantityWithUnit(it.quantity, it.product?.unitName ?? '')} × {formatMoney(it.unitPrice)}
+                  {it.unitId ? (
+                    <>
+                      {formatQuantityWithUnit(it.unitQuantity, it.unitName)} ({formatQuantityWithUnit(it.quantity, it.product?.unitName ?? '')})
+                    </>
+                  ) : (
+                    formatQuantityWithUnit(it.quantity, it.product?.unitName ?? '')
+                  )}{' '}
+                  {it.priceMode === 'total' ? <>· مبلغ کل · هر {it.unitName} ≈ {formatMoney(it.unitPrice)}</> : <>× {formatMoney(it.unitPrice)}</>}
                 </span>
                 {it.discount > 0 && <span>تخفیف ردیف: {formatMoney(it.discount)}</span>}
               </div>

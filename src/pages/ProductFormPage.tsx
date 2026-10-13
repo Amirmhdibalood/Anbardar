@@ -75,7 +75,7 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
   const activeGroups = localGroups.filter((g) => g.isActive || g.id === product?.groupId)
   const initialGroup = product?.groupId ?? (activeGroups.find((g) => g.id === data.defaultGroupId)?.id ?? activeGroups[0]?.id ?? '')
   const [values, setValues] = useState<ProductFormValues>(() =>
-    product ? productToForm(product) : emptyProductForm({ groupId: initialGroup, unitId: DEFAULT_UNIT_ID }),
+    product ? productToForm(product) : { ...emptyProductForm({ groupId: initialGroup, unitId: DEFAULT_UNIT_ID }), subUnits: [] },
   )
   const [initialValues] = useState(values)
   const dirty = JSON.stringify(values) !== JSON.stringify(initialValues)
@@ -114,7 +114,7 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
 
   const save = async () => {
     setBanner(null)
-    const parsed = toProductInput(values, unit)
+    const parsed = toProductInput(values, unit, localUnits)
     if (!parsed.ok) return showErrors(parsed.errors)
     setSaving(true)
     try {
@@ -220,6 +220,62 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
         <Field label="کد کالا" htmlFor="f-code" error={errors['code']} hint={editing ? 'کد باید یکتا باشد.' : 'اگر خالی بگذارید، کد به‌صورت خودکار ساخته می‌شود.'}>
           <TextInput id="f-code" value={values.code} onChange={(e) => set('code', e.target.value)} placeholder="خودکار" invalid={!!errors['code']} autoComplete="off" maxLength={40} dir="ltr" />
         </Field>
+      </Card>
+
+      <Card className={styles.card} data-testid="sub-units">
+        <div className={styles.subHead}>
+          <strong>واحدهای فرعی</strong>
+          <span>مثلاً «کارتن = ۲۴ {unit?.name ?? 'واحد'}». موجودی همیشه به {unit?.name ?? 'واحد اصلی'} نگه داشته می‌شود.</span>
+        </div>
+        {errors['subUnits'] && <p className={styles.subError} role="alert">{errors['subUnits']}</p>}
+        {(values.subUnits ?? []).map((d) => {
+          const ue = errors[`sub:${d.key}:unitId`]
+          const fe = errors[`sub:${d.key}:factor`]
+          const others = new Set((values.subUnits ?? []).filter((x) => x.key !== d.key).map((x) => x.unitId))
+          const setSub = (patch: Partial<typeof d>) => {
+            setValues((v) => ({ ...v, subUnits: (v.subUnits ?? []).map((x) => (x.key === d.key ? { ...x, ...patch } : x)) }))
+            setErrors((e) => {
+              const next = { ...e }
+              delete next['subUnits']
+              for (const k of Object.keys(patch)) delete next[`sub:${d.key}:${k}`]
+              return next
+            })
+          }
+          return (
+            <div key={d.key} className={styles.subRow}>
+              <Field label="واحد" htmlFor={`f-sub-${d.key}`} error={ue}>
+                <Picker
+                  id={`f-sub-${d.key}`}
+                  title="واحد فرعی"
+                  value={d.unitId}
+                  onChange={(v) => setSub({ unitId: v })}
+                  invalid={!!ue}
+                  options={localUnits.filter((u) => u.id !== values.unitId && !others.has(u.id) && (u.isActive || u.id === d.unitId)).map((u) => ({ value: u.id, label: u.name }))}
+                />
+              </Field>
+              <Field label={`= چند ${unit?.name ?? ''}`} htmlFor={`f-subf-${d.key}`} error={fe}>
+                <QuantityInput id={`f-subf-${d.key}`} value={d.factor} onChange={(v) => setSub({ factor: v })} suffix={unit?.name} placeholder="۲۴" invalid={!!fe} />
+              </Field>
+              <button
+                type="button"
+                className={styles.subRemove}
+                aria-label="حذف واحد فرعی"
+                onClick={() => setValues((v) => ({ ...v, subUnits: (v.subUnits ?? []).filter((x) => x.key !== d.key) }))}
+              >
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+          )
+        })}
+        {(values.subUnits ?? []).length < 5 && (
+          <button
+            type="button"
+            className={styles.subAdd}
+            onClick={() => setValues((v) => ({ ...v, subUnits: [...(v.subUnits ?? []), { key: `s${Date.now().toString(36)}${(v.subUnits ?? []).length}`, unitId: '', factor: '' }] }))}
+          >
+            + افزودن واحد فرعی
+          </button>
+        )}
       </Card>
 
       <Card className={styles.card}>

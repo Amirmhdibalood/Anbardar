@@ -15,6 +15,14 @@ export interface ProductFormValues {
   reorderPoint: string
   salePrice: string
   description: string
+  /** واحدهای فرعی (کارتن = ۲۴ عدد)؛ factor = چند «واحد اصلی» */
+  subUnits?: SubUnitDraft[]
+}
+
+export interface SubUnitDraft {
+  key: string
+  unitId: string
+  factor: string
 }
 
 export type ProductFormResult = { ok: true; input: ProductInput } | { ok: false; errors: Record<string, string> }
@@ -32,6 +40,7 @@ export function productToForm(p: Product): ProductFormValues {
     reorderPoint: p.reorderPoint === 0 ? '' : quantityToInputText(p.reorderPoint),
     salePrice: p.salePrice === 0 ? '' : formatInteger(p.salePrice),
     description: p.description ?? '',
+    subUnits: (p.subUnits ?? []).filter((u) => u.isActive).map((u) => ({ key: u.id, unitId: u.unitId, factor: quantityToInputText(u.factor) })),
   }
 }
 
@@ -62,8 +71,28 @@ function parsePrice(text: string, label: string): { value: number } | { error: s
  * تبدیل متن فرم به ورودی سرویس + اجرای همان اعتبارسنجی سرویس تا تمام خطاها یک‌جا کنار فیلدها نشان داده شود.
  * `unit` برای قانون اعشار نقطه سفارش لازم است.
  */
-export function toProductInput(values: ProductFormValues, unit: Unit | undefined): ProductFormResult {
+export function toProductInput(values: ProductFormValues, unit: Unit | undefined, units: readonly Unit[] = []): ProductFormResult {
   const errors: Record<string, string> = {}
+  let subUnits: { unitId: string; factor: number }[] | undefined
+  if (values.subUnits) {
+    subUnits = []
+    const seen = new Set<string>()
+    for (const d of values.subUnits) {
+      const sub = units.find((u) => u.id === d.unitId)
+      if (!d.unitId || !sub) {
+        errors[`sub:${d.key}:unitId`] = 'واحد فرعی را انتخاب کنید.'
+        continue
+      }
+      if (d.unitId === values.unitId) errors[`sub:${d.key}:unitId`] = 'واحد فرعی نباید همان واحد اصلی باشد.'
+      else if (seen.has(d.unitId)) errors[`sub:${d.key}:unitId`] = 'این واحد دو بار آمده است.'
+      seen.add(d.unitId)
+      const parsed = parseQuantityInput(d.factor, unit?.allowsFraction ?? false)
+      if (!parsed.ok) errors[`sub:${d.key}:factor`] = quantityParseMessage(parsed.reason, 'ضریب', unit?.name ?? '')
+      else if (parsed.value <= 0) errors[`sub:${d.key}:factor`] = 'ضریب را بیشتر از صفر وارد کنید.'
+      else if (parsed.value === 1000) errors[`sub:${d.key}:factor`] = 'ضریب ۱ یعنی همان واحد اصلی؛ عدد دیگری وارد کنید.'
+      else subUnits.push({ unitId: d.unitId, factor: parsed.value })
+    }
+  }
 
   const sale = parsePrice(values.salePrice, 'قیمت فروش')
   if ('error' in sale) errors['salePrice'] = sale.error
@@ -85,6 +114,7 @@ export function toProductInput(values: ProductFormValues, unit: Unit | undefined
     reorderPoint,
     salePrice: 'value' in sale ? sale.value : 0,
     description: values.description,
+    ...(subUnits ? { subUnits } : {}),
   }
 
   try {

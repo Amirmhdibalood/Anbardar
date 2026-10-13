@@ -47,7 +47,7 @@ export default function PurchaseDetailPage() {
     )
   }
 
-  const { invoice, items, supplier, warehouse } = data
+  const { invoice, items, supplier, warehouse, charges } = data
   const cancelled = invoice.status === 'cancelled'
   const lineSum = items.reduce((s, i) => s + i.lineTotal, 0)
 
@@ -94,13 +94,27 @@ export default function PurchaseDetailPage() {
             </div>
             <div className={styles.itemMeta}>
               <span>
-                {formatQuantityWithUnit(it.quantity, it.product?.unitName ?? '')} × {formatMoney(it.unitPrice)}
+                {it.unitId ? (
+                    <>
+                      {formatQuantityWithUnit(it.unitQuantity, it.unitName)} ({formatQuantityWithUnit(it.quantity, it.product?.unitName ?? '')})
+                    </>
+                  ) : (
+                    formatQuantityWithUnit(it.quantity, it.product?.unitName ?? '')
+                  )}{' '}
+                  {it.priceMode === 'total' ? <>· مبلغ کل · هر {it.unitName} ≈ {formatMoney(it.unitPrice)}</> : <>× {formatMoney(it.unitPrice)}</>}
               </span>
               {it.discount > 0 && <span>تخفیف ردیف: {formatMoney(it.discount)}</span>}
             </div>
             {it.invoiceDiscountShare > 0 && (
               <div className={styles.itemMeta}>
                 <span>بهای نهایی پس از سهم تخفیف فاکتور: {formatMoney(it.netAmount)}</span>
+              </div>
+            )}
+            {it.landedShare > 0 && (
+              <div className={styles.itemMeta}>
+                <span>
+                  سهم هزینه‌های جانبی: {formatMoney(it.landedShare)} · بهای تمام‌شده: {formatMoney(it.netAmount + it.landedShare)}
+                </span>
               </div>
             )}
           </div>
@@ -122,6 +136,20 @@ export default function PurchaseDetailPage() {
           <strong data-testid="invoice-total">{formatMoney(invoice.totalAmount)}</strong>
         </div>
       </div>
+      {charges.length > 0 && (
+        <div className={`${styles.card} ${styles.totals}`} data-testid="charges-detail">
+          {charges.map((c) => (
+            <div key={c.id}>
+              <span>{c.title}</span>
+              <strong>{formatMoney(c.amount)}</strong>
+            </div>
+          ))}
+          <div className={styles.grand}>
+            <span>هزینه‌های جانبی ({invoice.landedMethod === 'quantity' ? 'تسهیم به نسبت تعداد' : 'تسهیم به نسبت ارزش'})</span>
+            <strong>{formatMoney(invoice.landedTotal)}</strong>
+          </div>
+        </div>
+      )}
       <InvoicePaymentCard kind="purchase" invoiceId={invoice.id} partyId={invoice.supplierId} systemParty={!!supplier?.isSystem} cancelled={cancelled} />
       {!cancelled && (
         <div className={styles.actionStack}>

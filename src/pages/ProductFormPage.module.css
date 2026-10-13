@@ -75,3 +75,43 @@
     grid-template-columns: 1fr;
   }
 }
+
+.subHead {
+  display: grid;
+  gap: 2px;
+}
+.subHead span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.subRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+.subRemove {
+  margin-top: 30px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--muted);
+}
+.subAdd {
+  justify-self: start;
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+}
+.subError {
+  color: var(--error);
+  font-size: 13px;
+  margin: 0;
+}

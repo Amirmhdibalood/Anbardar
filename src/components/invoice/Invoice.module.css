@@ -358,3 +358,43 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
+
+.lineOptions {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+.lineOptions > * {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.modeSwitch {
+  padding-bottom: 2px;
+}
+.chargesCard {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 8px;
+}
+.chargesHead {
+  display: grid;
+  gap: 2px;
+}
+.chargesHead span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+.chargeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+}
+.chargeRow > button {
+  margin-top: 30px;
+}

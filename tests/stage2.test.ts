@@ -307,7 +307,7 @@ describe('stage 2: backup round-trip', () => {
     await createPurchaseService(f.db).create({ supplierId: supplier.id, paidAmount: 0, warehouseId: f.warehouseId, items: [{ productId: p.id, unitId: carton, quantity: Q(1), unitPrice: 0, priceMode: 'total', lineAmount: 100_000 }], charges: [{ title: 'حمل', amount: 5_000 }] })
     await createMoneyService(f.db).create({ kind: 'payment', partyId: supplier.id, amount: 100_000, method: 'cheque', cheque: { number: '1', bank: 'ملی', dueDate: '2026-11-01T00:00:00.000Z' } })
     const dump = await dumpDatabase(f.db, 7, 'test')
-    const v = validateDump(JSON.parse(JSON.stringify(dump)))
+    const v = validateDump(JSON.parse(JSON.stringify(dump)), 7)
     assert.ok(v.ok, JSON.stringify(v))
     const db2 = await freshDb()
     await restoreDump(db2, dump)
