@@ -1,0 +1,50 @@
+/* روی محتوا شناور است: هیچ جابه‌جایی در چیدمان صفحه ایجاد نمی‌کند */
+.stack {
+  position: fixed;
+  top: calc(var(--safe-top) + 74px);
+  inset-inline: 12px;
+  margin-inline: auto;
+  max-width: 560px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.banner {
+  pointer-events: auto;
+  touch-action: pan-y;
+  user-select: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 12px 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  color: var(--text);
+  animation: drop 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 0.18s, opacity 0.18s;
+  cursor: pointer;
+}
+.banner[data-severity='2'] { border-inline-start: 4px solid var(--error); }
+.banner[data-severity='1'] { border-inline-start: 4px solid var(--warning, #d98e04); }
+.banner[data-leaving='true'] { opacity: 0; transform: translateY(-12px); }
+.icon { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex-shrink: 0; }
+.text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.7; }
+.text strong { font-size: 14px; }
+.text span { color: var(--muted); }
+.action { align-self: flex-start; margin-top: 4px; padding: 6px 12px; border-radius: 10px; background: var(--accent); color: #fff; font-weight: 700; font-size: 13px; }
+.close { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--muted); flex-shrink: 0; }
+.close:active { background: color-mix(in srgb, var(--text) 8%, transparent); }
+@keyframes drop {
+  from { opacity: 0; transform: translateY(-16px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .banner { animation: none; transition: none; }
+  .banner[data-leaving='true'] { transform: none; }
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../components/Badge'
 import { Card } from '../components/Card'
@@ -9,41 +9,20 @@ import { useAsync } from '../hooks/useAsync'
 import { useDashboard } from '../hooks/useDashboard'
 import { useMoney } from '../hooks/useMoney'
 import { PAYMENT_STATUS_LABELS } from '../models/money'
-import { getApp, getCheques, getSales } from '../services/appContext'
-import { BACKUP_INTRO_KEY } from '../services/backupChanges'
-import { daysUntil } from '../models/cheque'
-import { getBackupInfo } from '../services/backupService'
+import { getSales } from '../services/appContext'
 import { MONEY_UNIT, formatMoney } from '../utils/money'
 import { formatPersianDate, formatPersianDateTime } from '../utils/date'
 import { formatInteger, toPersianDigits } from '../utils/persian'
 import { TopTools } from '../components/TopTools'
+import { FloatingBanners } from '../components/FloatingBanners'
 import styles from './HomePage.module.css'
 import list from './money/Money.module.css'
 
 export default function HomePage() {
   const summary = useDashboard()
   const money = useMoney()
-  const loadBackup = useCallback(() => getBackupInfo(), [])
-  const { data: backup } = useAsync(loadBackup)
   const loadRecent = useCallback(() => getSales().list({ limit: 5 }), [])
   const { data: recent } = useAsync(loadRecent)
-  // چک‌های در جریان با سررسید تا ۷ روز آینده (و سررسیدگذشته‌ها)
-  const loadDue = useCallback(() => getCheques().dueUntil(new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()), [])
-  const { data: due } = useAsync(loadDue)
-  // هشدار اولین اجرا: اطلاعات فقط روی همین گوشی است
-  const [intro, setIntro] = useState(false)
-  useEffect(() => {
-    void getApp()
-      .repos.settings.getValue(BACKUP_INTRO_KEY)
-      .then((v) => setIntro(!v))
-      .catch(() => undefined)
-  }, [])
-  const dismissIntro = () => {
-    setIntro(false)
-    void getApp().repos.settings.setValue(BACKUP_INTRO_KEY, '1')
-  }
-  const overdue = (due ?? []).filter((c) => daysUntil(c.dueDate) < 0).length
-
   return (
     <>
       <header className={styles.header}>
@@ -54,39 +33,8 @@ export default function HomePage() {
         <TopTools />
       </header>
 
-      {intro && (
-        <div className={`${styles.backupBanner} ${styles.introCard}`} role="note" data-testid="backup-intro">
-          <Icon name="shield" size={18} />
-          <div className={styles.introBody}>
-            <strong>اطلاعات فقط روی همین گوشی ذخیره می‌شود</strong>
-            <span>انباردار به اینترنت وصل نیست. اگر گوشی گم، خراب یا برنامه پاک شود، اطلاعات فقط با «نسخه پشتیبان» برمی‌گردد. هر چند روز یک‌بار پشتیبان بگیرید و فایل را جای امنی (مثلاً تلگرام یا ایمیل) نگه دارید.</span>
-            <div className={styles.introActions}>
-              <Link to="/more/backup" onClick={dismissIntro} className={styles.introPrimary}>
-                تنظیم پشتیبان
-              </Link>
-              <button type="button" onClick={dismissIntro} className={styles.introDismiss} data-testid="backup-intro-dismiss">
-                متوجه شدم
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!intro && backup?.reminderEnabled && backup.isStale && (
-        <Link to="/more/backup" className={styles.backupBanner} role="status">
-          <Icon name="shield" size={18} />
-          <span>از اطلاعات فروشگاه نسخه پشتیبان بگیرید تا در صورت نیاز بتوانید بازیابی کنید.</span>
-        </Link>
-      )}
-
-      {due && due.length > 0 && (
-        <Link to="/cheques" className={`${styles.backupBanner} ${styles.chequeBanner}`} role="status" data-testid="cheque-banner">
-          <Icon name="file" size={18} />
-          <span>
-            {toPersianDigits(due.length)} چک تا یک هفته آینده سررسید دارد{overdue > 0 ? ` (${toPersianDigits(overdue)} مورد گذشته)` : ''} · جمع {formatMoney(due.reduce((a, c) => a + c.amount, 0), { withUnit: true })}
-          </span>
-        </Link>
-      )}
+      {/* هشدارها به‌صورت بنر شناور (بدون جابه‌جایی محتوا) و در زنگ اعلان‌ها */}
+      <FloatingBanners />
 
       <div className={styles.actions}>
         <Link to="/sales/new" className={`${styles.action} ${styles.primary}`}>
