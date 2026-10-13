@@ -316,3 +316,32 @@ describe('stage 2: backup round-trip', () => {
     }
   })
 })
+
+describe('stage 2: invoice form (price mode, units, charges)', () => {
+  it('total mode: live counterpart and exact input', async () => {
+    const { draftTotals, draftToInput } = await import('../src/services/invoiceForm')
+    const { toJalali } = await import('../src/utils/jalali')
+    const product = { id: 'p', name: 'کالا', unitId: each, unitName: 'عدد', unitAllowsFraction: false, subUnits: [{ id: 'x', unitId: carton, unitName: 'کارتن', allowsFraction: false, factor: 24_000, isActive: true }] } as never
+    const draft = {
+      partyId: 's',
+      warehouseId: 'w',
+      day: toJalali(new Date()),
+      reference: '',
+      discount: '',
+      note: '',
+      lines: [{ key: 'a', product, quantity: '۳', unitPrice: '', discount: '', priceMode: 'total' as const, amount: '۱۰۰٬۰۰۰' }, { key: 'b', product, unitId: carton, quantity: '۲', unitPrice: '۴۸۰٬۰۰۰', discount: '' }],
+      charges: [{ key: 'c', title: 'حمل', amount: '۵٬۰۰۰' }],
+      landedMethod: 'quantity' as const,
+    }
+    const t = draftTotals(draft)
+    assert.deepEqual([t.lineTotals['a'], t.lineUnitPrices['a'], t.lineTotals['b'], t.lineGross['b'], t.landedTotal], [100_000, 33_333, 960_000, 960_000, 5_000])
+    const r = draftToInput(draft)
+    assert.ok(r.ok)
+    if (!r.ok) return
+    assert.deepEqual(r.input.items[0], { productId: 'p', unitId: null, quantity: 3000, unitPrice: 0, priceMode: 'total', lineAmount: 100_000, discount: 0 })
+    assert.deepEqual(r.input.items[1], { productId: 'p', unitId: carton, quantity: 2000, unitPrice: 480_000, discount: 0 })
+    assert.deepEqual([r.input.charges, r.input.landedMethod], [[{ title: 'حمل', amount: 5_000 }], 'quantity'])
+    const bad = draftToInput({ ...draft, lines: [{ ...draft.lines[1]!, quantity: '۱٫۵' }] })
+    assert.ok(!bad.ok)
+  })
+})

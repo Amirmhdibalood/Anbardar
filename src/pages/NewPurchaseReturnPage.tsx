@@ -11,7 +11,10 @@ import { useLeaveConfirm } from '../hooks/useLeaveConfirm'
 import { getPurchases, getReturns } from '../services/appContext'
 import { toUserMessage, ValidationError } from '../utils/errors'
 import { formatMoney } from '../utils/money'
-import { formatQuantityWithUnit, parseQuantityInput, quantityToInputText } from '../utils/quantity'
+import { formatQuantity, formatQuantityWithUnit, parseQuantityInput, quantityToInputText } from '../utils/quantity'
+import { Picker } from '../components/Picker'
+import { returnUnit } from '../services/returnForm'
+import { toBaseQuantity } from '../utils/invoiceMath'
 import styles from './Returns.module.css'
 
 export default function NewPurchaseReturnPage() {
@@ -25,6 +28,8 @@ export default function NewPurchaseReturnPage() {
   }, [id])
   const { data, error, loading, reload } = useAsync(load)
   const [qtys, setQtys] = useState<Record<string, string>>({})
+  /** واحد ورود هر ردیف: همان واحد فاکتور (line) یا واحد اصلی (base) */
+  const [units, setUnits] = useState<Record<string, 'line' | 'base'>>({})
   const leave = useLeaveConfirm(Object.values(qtys).some((q) => q.trim() !== '' && q.trim() !== '0' && q.trim() !== '۰'), goBack)
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -50,20 +55,26 @@ export default function NewPurchaseReturnPage() {
 
   const submit = async () => {
     setFormError(null)
-    const parsed: { sourceItemId: string; quantity: number }[] = []
+    const parsed: { sourceItemId: string; quantity: number; unitId?: string | null }[] = []
     for (const row of lines) {
       const text = qtys[row.item.id] ?? ''
       if (!text.trim()) continue
-      const q = parseQuantityInput(text, row.product?.unitAllowsFraction ?? true)
+      const ru = returnUnit(row, units[row.item.id])
+      const q = parseQuantityInput(text, ru.allowsFraction)
       if (!q.ok) {
         setFormError('تعداد معتبر نیست.')
         return
       }
-      if (q.value > row.remaining) {
+      const base = toBaseQuantity(q.value, ru.factor)
+      if (base === null) {
+        setFormError(`تعداد برگشت «${row.product?.name}» به واحد اصلی بیش از سه رقم اعشار می‌شود.`)
+        return
+      }
+      if (base > row.remaining) {
         setFormError(`تعداد برگشت «${row.product?.name}» بیشتر از باقی‌مانده است.`)
         return
       }
-      if (q.value > 0) parsed.push({ sourceItemId: row.item.id, quantity: q.value })
+      if (q.value > 0) parsed.push({ sourceItemId: row.item.id, quantity: q.value, unitId: ru.unitId })
     }
     if (!parsed.length) {
       setFormError('حداقل برای یک کالا تعداد برگشت وارد کنید.')
@@ -98,16 +109,33 @@ export default function NewPurchaseReturnPage() {
                 <span>{formatMoney(row.item.unitPrice)}</span>
               </div>
               <div className={styles.meta}>
-                <span>خریده: {formatQuantityWithUnit(row.item.quantity, row.product?.unitName ?? '')}</span>
+                <span>
+                  خریده: {formatQuantityWithUnit(row.item.quantity, row.product?.unitName ?? '')}
+                  {row.item.unitId ? ` (${formatQuantity(row.item.unitQuantity)} ${returnUnit(row, 'line').name})` : ''}
+                </span>
                 <span>قابل برگشت: {formatQuantityWithUnit(row.remaining, row.product?.unitName ?? '')}</span>
               </div>
+              {row.item.unitId && (
+                <Field label="واحد برگشت" htmlFor={`pu-${row.item.id}`}>
+                  <Picker<'line' | 'base'>
+                    id={`pu-${row.item.id}`}
+                    title="واحد برگشت"
+                    value={units[row.item.id] ?? 'line'}
+                    onChange={(v) => setUnits((s) => ({ ...s, [row.item.id]: v }))}
+                    options={[
+                      { value: 'line', label: returnUnit(row, 'line').name, description: 'واحد فاکتور' },
+                      { value: 'base', label: row.product?.unitName ?? '', description: 'واحد اصلی' },
+                    ]}
+                  />
+                </Field>
+              )}
               <Field label="تعداد برگشت" htmlFor={`pq-${row.item.id}`}>
                 <QuantityInput
                   id={`pq-${row.item.id}`}
                   value={qtys[row.item.id] ?? ''}
                   onChange={(v) => setQtys((s) => ({ ...s, [row.item.id]: v }))}
-                  placeholder={quantityToInputText(row.remaining)}
-                  suffix={row.product?.unitName}
+                  placeholder={returnUnit(row, units[row.item.id]).factor === 1000 ? quantityToInputText(row.remaining) : '۰'}
+                  suffix={returnUnit(row, units[row.item.id]).name}
                 />
               </Field>
             </div>
