@@ -20,7 +20,7 @@
   gap: 10px;
   padding: 12px 12px 12px 8px;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  background: var(--card);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border);

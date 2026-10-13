@@ -205,7 +205,7 @@ async function run(theme) {
   await settle(300)
   check(t('detail shows cheque block (در جریان)'), (await page.$eval('[data-testid="cheque-detail"]', (e) => e.innerText).catch(() => '')).includes('در جریان'))
   await go('#/')
-  check(t('home banner: cheque due within 7 days'), (await page.$eval('[data-testid="cheque-banner"]', (e) => e.innerText).catch(() => '')).includes('سررسید'))
+  check(t('home banner: cheque due within 7 days'), (await page.$$eval('[data-testid="floating-banner"]', (es) => es.map((e) => e.innerText).join(' ')).catch(() => '')).includes('سررسید چک'))
   await shot('home-cheque-banner')
   await go('#/cheques')
   const list = await page.$eval('[data-testid="cheque-list"]', (e) => e.innerText).catch(() => '')
