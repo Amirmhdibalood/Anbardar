@@ -20,7 +20,11 @@ import { formatPersianDateTime } from '../utils/date'
 import { ValidationError, toUserMessage } from '../utils/errors'
 import { formatInteger, parseIntegerInput, toPersianDigits } from '../utils/persian'
 import { formatMoney, mulDivRound } from '../utils/money'
-import { formatQuantity, parseQuantityInput, quantityParseMessage, quantityToInputText } from '../utils/quantity'
+import { formatQuantity, formatQuantityWithUnit, parseQuantityInput, quantityParseMessage, quantityToInputText } from '../utils/quantity'
+import { SegmentedControl } from '../components/SegmentedControl'
+import type { PriceMode } from '../models/invoice'
+import { lineUnit, loadPriceMode, savePriceMode } from '../services/invoiceForm'
+import { toBaseQuantity, unitPriceFromTotal } from '../utils/invoiceMath'
 import styles from './StockPage.module.css'
 
 interface Loaded {
@@ -323,6 +327,10 @@ function AdjustSheet({
   const [kind, setKind] = useState<AdjustKind>('count')
   const [value, setValue] = useState('')
   const [unitCostText, setUnitCostText] = useState<string | null>(null)
+  // موجودی اولیه: واحد ورود (واحد فرعی) و «قیمت واحد / مبلغ کل»
+  const [openUnitId, setOpenUnitId] = useState(product.unitId)
+  const [priceMode, setPriceMode] = useState<PriceMode>(() => loadPriceMode())
+  const [totalText, setTotalText] = useState('')
   const [note, setNote] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
@@ -335,13 +343,20 @@ function AdjustSheet({
   const { data: info } = useAsync(loadInfo)
   const current = info?.current
   // پیش‌فرض بهای موجودی اولیه: قیمت واحد آخرین خرید (کاربر می‌تواند عوض کند)
-  const unitCostValue = unitCostText ?? (info?.suggested ? formatInteger(info.suggested) : '')
 
   const isTotal = kind === 'count' || kind === 'opening'
-  const parsed = parseQuantityInput(value, product.unitAllowsFraction)
+  const subUnits = (product.subUnits ?? []).filter((u) => u.isActive)
+  const opening = kind === 'opening'
+  const ou = lineUnit({ product, unitId: opening ? openUnitId : null })
+  const parsed = parseQuantityInput(value, ou.allowsFraction)
   const entered = value.trim() !== ''
-  const delta = parsed.ok && entered && current !== undefined ? (isTotal ? parsed.value - current : -parsed.value) : null
-  const unitCost = parseIntegerInput(unitCostValue)
+  const baseValue = parsed.ok ? toBaseQuantity(parsed.value, ou.factor) : null
+  const delta = parsed.ok && baseValue !== null && entered && current !== undefined ? (isTotal ? baseValue - current : -baseValue) : null
+  // پیشنهاد آخرین خرید «هر واحد پایه» است؛ برای واحد فرعی ضرب در ضریب
+  const unitCost = parseIntegerInput(unitCostText ?? (info?.suggested ? formatInteger(Math.round((info.suggested * ou.factor) / 1000)) : ''))
+  const totalCost = parseIntegerInput(totalText)
+  const totalMode = opening && priceMode === 'total'
+  const openingCost = delta !== null && delta > 0 ? (totalMode ? totalCost : unitCost === null ? null : mulDivRound(delta, unitCost, ou.factor)) : null
   const kindInfo = ADJUST_KINDS.find((k) => k.value === kind) ?? ADJUST_KINDS[0]
   const qtyLabel = kind === 'count' ? 'عدد شمارش‌شده (موجودی جدید)' : kind === 'opening' ? 'موجودی جدید' : kind === 'shortage' ? 'مقدار کسری' : 'مقدار ضایعات / خرابی'
 
@@ -349,7 +364,8 @@ function AdjustSheet({
   if (delta !== null && delta !== 0) {
     const amount = `${formatQuantity(Math.abs(delta))} ${product.unitName}`
     if (delta > 0 && kind === 'opening') {
-      summary = { text: `${amount} با بهای کل ${formatMoney(unitCost === null ? 0 : mulDivRound(delta, unitCost, 1000))} اضافه می‌شود.`, down: false }
+      const per = totalMode && totalCost !== null && delta > 0 ? ` (هر ${product.unitName} ≈ ${formatMoney(unitPriceFromTotal(totalCost, delta))})` : ''
+      summary = { text: `${amount} با بهای کل ${formatMoney(openingCost ?? 0)} اضافه می‌شود${per}.`, down: false }
     } else if (delta > 0) {
       summary = { text: `${amount} به موجودی اضافه می‌شود (با بهای میانگین فعلی کالا).`, down: false }
     } else {
@@ -361,13 +377,24 @@ function AdjustSheet({
   const save = async () => {
     const next: Record<string, string> = {}
     if (!entered) next['quantity'] = isTotal ? 'موجودی جدید را وارد کنید (برای صفر بودن، عدد ۰).' : 'مقدار را وارد کنید.'
-    else if (!parsed.ok) next['quantity'] = quantityParseMessage(parsed.reason, isTotal ? 'موجودی' : 'مقدار', product.unitName)
-    if (kind === 'opening' && unitCost === null) next['unitCost'] = 'بهای هر واحد را به تومان وارد کنید (اگر رایگان بوده ۰).'
+    else if (!parsed.ok) next['quantity'] = quantityParseMessage(parsed.reason, isTotal ? 'موجودی' : 'مقدار', ou.name)
+    else if (baseValue === null) next['quantity'] = `مقدار به واحد «${product.unitName}» بیش از سه رقم اعشار می‌شود.`
+    if (opening && !totalMode && unitCost === null) next['unitCost'] = 'بهای هر واحد را به تومان وارد کنید (اگر رایگان بوده ۰).'
+    if (totalMode && (totalCost === null || totalText.trim() === '')) next['totalCost'] = 'مبلغ کل را به تومان وارد کنید (اگر رایگان بوده ۰).'
     setErrors(next)
     if (Object.keys(next).length > 0 || !parsed.ok) return
     setSaving(true)
     try {
-      await getStock().adjust({ productId: product.id, warehouseId, kind, quantity: parsed.value, unitCost: kind === 'opening' ? (unitCost ?? undefined) : undefined, note })
+      await getStock().adjust({
+        productId: product.id,
+        warehouseId,
+        kind,
+        quantity: parsed.value,
+        ...(opening
+          ? { unitId: ou.factor === 1000 ? null : ou.id, priceMode, ...(totalMode ? { totalCost: totalCost ?? 0 } : { unitCost: unitCost ?? undefined }) }
+          : {}),
+        note,
+      })
       toast.show(kind === 'opening' ? 'موجودی اولیه ثبت شد.' : kind === 'count' ? 'شمارش ثبت شد.' : kind === 'shortage' ? 'کسری ثبت شد.' : 'ضایعات ثبت شد.')
       onSaved()
     } catch (e) {
@@ -424,7 +451,25 @@ function AdjustSheet({
           ))}
         </div>
         <p className={styles.kindHint}>{kindInfo?.hint}</p>
-        <Field label={qtyLabel} required htmlFor="adj-qty" error={errors['quantity']} hint={product.unitAllowsFraction ? 'تا سه رقم اعشار مجاز است.' : `واحد «${product.unitName}» فقط عدد صحیح می‌پذیرد.`}>
+        {opening && subUnits.length > 0 && (
+          <Field label="واحد ورود" htmlFor="adj-unit">
+            <Picker
+              id="adj-unit"
+              title="واحد ورود"
+              value={openUnitId}
+              onChange={(v) => {
+                setOpenUnitId(v)
+                setUnitCostText(null)
+                setErrors({})
+              }}
+              options={[
+                { value: product.unitId, label: product.unitName, description: 'واحد اصلی' },
+                ...subUnits.map((u) => ({ value: u.unitId, label: u.unitName, description: formatQuantityWithUnit(u.factor, product.unitName) })),
+              ]}
+            />
+          </Field>
+        )}
+        <Field label={opening && ou.factor !== 1000 ? `${qtyLabel} (${ou.name})` : qtyLabel} required htmlFor="adj-qty" error={errors['quantity']} hint={ou.allowsFraction ? 'تا سه رقم اعشار مجاز است.' : `واحد «${ou.name}» فقط عدد صحیح می‌پذیرد.`}>
           <QuantityInput
             id="adj-qty"
             value={value}
@@ -432,22 +477,64 @@ function AdjustSheet({
               setValue(v)
               setErrors((e) => ({ ...e, quantity: '' }))
             }}
-            suffix={product.unitName}
+            suffix={opening ? ou.name : product.unitName}
             invalid={!!errors['quantity']}
             placeholder={isTotal ? quantityToInputText(current ?? 0) || '۰' : '۰'}
           />
         </Field>
-        {kind === 'opening' && (
-          <Field label="بهای خرید هر واحد" required htmlFor="adj-cost" error={errors['unitCost']} hint={info?.suggested ? 'پیش‌فرض: قیمت آخرین خرید این کالا.' : undefined}>
+        {opening && (
+          <SegmentedControl<PriceMode>
+            label="نوع بها"
+            value={priceMode}
+            onChange={(m) => {
+              savePriceMode(m)
+              setPriceMode(m)
+              setErrors({})
+            }}
+            options={[
+              { value: 'unit', label: 'قیمت واحد' },
+              { value: 'total', label: 'مبلغ کل' },
+            ]}
+          />
+        )}
+        {opening && !totalMode && (
+          <Field
+            label={`بهای خرید هر ${ou.name}`}
+            required
+            htmlFor="adj-cost"
+            error={errors['unitCost']}
+            hint={openingCost != null ? `جمع: ${formatMoney(openingCost)} تومان` : info?.suggested ? 'پیش‌فرض: قیمت آخرین خرید این کالا.' : undefined}
+          >
             <MoneyInput
               id="adj-cost"
-              value={unitCostValue}
+              value={unitCostText ?? (unitCost === null ? '' : formatInteger(unitCost))}
               onChange={(v) => {
                 setUnitCostText(v)
                 setErrors((e) => ({ ...e, unitCost: '' }))
               }}
-              suffix={`تومان / ${product.unitName}`}
+              suffix={`تومان / ${ou.name}`}
               invalid={!!errors['unitCost']}
+              placeholder="۰"
+            />
+          </Field>
+        )}
+        {totalMode && (
+          <Field
+            label="بهای کل مقدار اضافه‌شده"
+            required
+            htmlFor="adj-total"
+            error={errors['totalCost']}
+            hint={totalCost !== null && delta !== null && delta > 0 ? `هر ${ou.name} ≈ ${formatMoney(unitPriceFromTotal(totalCost, Math.max(1, mulDivRound(delta, 1000, ou.factor))))} تومان` : undefined}
+          >
+            <MoneyInput
+              id="adj-total"
+              value={totalText}
+              onChange={(v) => {
+                setTotalText(v)
+                setErrors((e) => ({ ...e, totalCost: '' }))
+              }}
+              suffix="تومان"
+              invalid={!!errors['totalCost']}
               placeholder="۰"
             />
           </Field>

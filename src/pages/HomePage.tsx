@@ -9,7 +9,8 @@ import { useAsync } from '../hooks/useAsync'
 import { useDashboard } from '../hooks/useDashboard'
 import { useMoney } from '../hooks/useMoney'
 import { PAYMENT_STATUS_LABELS } from '../models/money'
-import { getSales } from '../services/appContext'
+import { getCheques, getSales } from '../services/appContext'
+import { daysUntil } from '../models/cheque'
 import { getBackupInfo } from '../services/backupService'
 import { MONEY_UNIT, formatMoney } from '../utils/money'
 import { formatPersianDate, formatPersianDateTime } from '../utils/date'
@@ -25,6 +26,10 @@ export default function HomePage() {
   const { data: backup } = useAsync(loadBackup)
   const loadRecent = useCallback(() => getSales().list({ limit: 5 }), [])
   const { data: recent } = useAsync(loadRecent)
+  // چک‌های در جریان با سررسید تا ۷ روز آینده (و سررسیدگذشته‌ها)
+  const loadDue = useCallback(() => getCheques().dueUntil(new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString()), [])
+  const { data: due } = useAsync(loadDue)
+  const overdue = (due ?? []).filter((c) => daysUntil(c.dueDate) < 0).length
 
   return (
     <>
@@ -40,6 +45,15 @@ export default function HomePage() {
         <Link to="/more/backup" className={styles.backupBanner} role="status">
           <Icon name="shield" size={18} />
           <span>از اطلاعات فروشگاه نسخه پشتیبان بگیرید تا در صورت نیاز بتوانید بازیابی کنید.</span>
+        </Link>
+      )}
+
+      {due && due.length > 0 && (
+        <Link to="/cheques" className={`${styles.backupBanner} ${styles.chequeBanner}`} role="status" data-testid="cheque-banner">
+          <Icon name="file" size={18} />
+          <span>
+            {toPersianDigits(due.length)} چک تا یک هفته آینده سررسید دارد{overdue > 0 ? ` (${toPersianDigits(overdue)} مورد گذشته)` : ''} · جمع {formatMoney(due.reduce((a, c) => a + c.amount, 0), { withUnit: true })}
+          </span>
         </Link>
       )}
 

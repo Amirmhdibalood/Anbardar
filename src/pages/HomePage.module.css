@@ -141,3 +141,10 @@
 .payable {
   color: var(--warning);
 }
+.chequeBanner {
+  background: var(--warning-soft);
+  border-color: color-mix(in srgb, var(--warning) 40%, transparent);
+}
+.chequeBanner svg {
+  color: var(--warning);
+}

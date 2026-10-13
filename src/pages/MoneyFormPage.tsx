@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
-import { Field, MoneyInput, TextArea } from '../components/Field'
+import { Field, MoneyInput, TextArea, TextInput } from '../components/Field'
 import { JalaliDatePicker } from '../components/JalaliDatePicker'
 import { PageHeader } from '../components/PageHeader'
 import { Picker } from '../components/Picker'
@@ -21,7 +21,8 @@ import { suggestOldestFirst, type OpenInvoice } from '../services/moneyService'
 import { ValidationError, toUserMessage } from '../utils/errors'
 import { formatPersianDate } from '../utils/date'
 import { newId } from '../utils/id'
-import { toJalali } from '../utils/jalali'
+import { fromJalali, toJalali } from '../utils/jalali'
+import { BANKS } from '../models/banks'
 import { formatMoney } from '../utils/money'
 import { formatMoneyTyping } from '../services/productForm'
 import { parseIntegerInput, toPersianDigits } from '../utils/persian'
@@ -47,6 +48,11 @@ export default function MoneyFormPage() {
   const [day, setDay] = useState(() => toJalali(new Date()))
   const [method, setMethod] = useState<MoneyMethod>('cash')
   const [note, setNote] = useState('')
+  // روش «چک»: شماره، بانک، سررسید
+  const [chequeNo, setChequeNo] = useState('')
+  const [bank, setBank] = useState('')
+  const [bankCustom, setBankCustom] = useState(false)
+  const [dueDay, setDueDay] = useState(() => toJalali(new Date()))
   const [alloc, setAlloc] = useState<Record<string, string>>({})
   const [errors, setErrors] = useState<Record<string, string>>({})
   // مقدار پیش‌پر شده از فاکتور «تغییر کاربر» حساب نمی‌شود
@@ -103,11 +109,25 @@ export default function MoneyFormPage() {
       const inv = open.data?.find((i) => i.id === a.invoiceId)
       if (inv && a.amount > inv.settlement.remaining) errs['allocations'] = `تخصیص فاکتور ${toPersianDigits(inv.number)} از مانده آن بیشتر است.`
     }
+    if (method === 'cheque') {
+      if (!chequeNo.trim()) errs['cheque.number'] = 'شماره چک را وارد کنید.'
+      if (!bank.trim()) errs['cheque.bank'] = 'نام بانک را وارد کنید.'
+    }
     if (Object.keys(errs).length) return setErrors(errs)
     setSaving(true)
     setErrors({})
     try {
-      const doc = await getMoney().create({ kind, partyId, amount: total!, docDate: draftDate(day), method, note, allocations, requestId })
+      const doc = await getMoney().create({
+        kind,
+        partyId,
+        amount: total!,
+        docDate: draftDate(day),
+        method,
+        note,
+        allocations,
+        requestId,
+        ...(method === 'cheque' ? { cheque: { number: chequeNo, bank, dueDate: fromJalali(dueDay, 12, 0).toISOString() } } : {}),
+      })
       toast.show(kind === 'receipt' ? 'دریافت ثبت شد.' : 'پرداخت ثبت شد.')
       navigate(`/money/${doc.id}`, { replace: true })
     } catch (e) {
@@ -158,6 +178,44 @@ export default function MoneyFormPage() {
         <Field label="روش" htmlFor="money-method">
           <Picker id="money-method" title="روش پرداخت" value={method} onChange={setMethod} options={METHODS.map((m) => ({ value: m, label: MONEY_METHOD_LABELS[m] }))} />
         </Field>
+        {method === 'cheque' && (
+          <Card>
+            <div className={styles.alloc} data-testid="cheque-fields">
+              <strong>مشخصات چک {kind === 'receipt' ? 'دریافتی' : 'پرداختی'}</strong>
+              <Field label="شماره چک" required htmlFor="cheque-no" error={errors['cheque.number']}>
+                <TextInput id="cheque-no" value={chequeNo} onChange={(e) => setChequeNo(e.target.value)} inputMode="numeric" autoComplete="off" maxLength={30} invalid={!!errors['cheque.number']} />
+              </Field>
+              <Field label="بانک" required htmlFor="cheque-bank" error={errors['cheque.bank']}>
+                {bankCustom ? (
+                  <TextInput id="cheque-bank" value={bank} onChange={(e) => setBank(e.target.value)} placeholder="نام بانک" maxLength={40} autoComplete="off" invalid={!!errors['cheque.bank']} />
+                ) : (
+                  <Picker
+                    id="cheque-bank"
+                    title="بانک"
+                    value={bank}
+                    onChange={setBank}
+                    invalid={!!errors['cheque.bank']}
+                    options={BANKS.map((b) => ({ value: b, label: b }))}
+                    addLabel="بانک دیگر"
+                    onAdd={(q) => {
+                      setBank(q.trim())
+                      setBankCustom(true)
+                    }}
+                    placeholder="انتخاب بانک"
+                  />
+                )}
+              </Field>
+              <Field label="تاریخ سررسید" required htmlFor="cheque-due" error={errors['cheque.dueDate']}>
+                <JalaliDatePicker id="cheque-due" value={dueDay} onChange={setDueDay} title="سررسید چک" />
+              </Field>
+              <span className={styles.meta}>
+                {kind === 'receipt'
+                  ? 'مبلغ چک از همین الان از بدهی او کم می‌شود. اگر چک برگشت بخورد، در صفحه «چک‌ها» آن را برگشتی کنید تا بدهی دوباره باز شود.'
+                  : 'مبلغ چک از همین الان از بدهی شما کم می‌شود. اگر چک برگشت بخورد، بدهی دوباره باز می‌شود.'}
+              </span>
+            </div>
+          </Card>
+        )}
         <Field label="تاریخ" htmlFor="money-date" error={errors['docDate']}>
           <JalaliDatePicker id="money-date" value={day} onChange={setDay} />
         </Field>

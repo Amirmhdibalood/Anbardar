@@ -155,3 +155,33 @@ a.row:active {
 .summary .big span {
   font-size: inherit;
 }
+
+.chequeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chequeCard {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.chequeCard:last-child {
+  border-bottom: 0;
+}
+.chequeTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.overdue {
+  color: var(--error);
+  font-weight: 600;
+}
+.dueSoon {
+  color: var(--warning);
+  font-weight: 600;
+}

@@ -12,7 +12,8 @@ import { useAsync } from '../hooks/useAsync'
 import { useGoBack } from '../hooks/useGoBack'
 import { MONEY_KIND_LABELS, MONEY_METHOD_LABELS } from '../models/money'
 import { getMoney } from '../services/appContext'
-import { formatPersianDateTime } from '../utils/date'
+import { formatPersianDate, formatPersianDateTime } from '../utils/date'
+import { ChequeActions, ChequeBadge } from '../components/ChequeActions'
 import { formatMoney } from '../utils/money'
 import { toPersianDigits } from '../utils/persian'
 import inv from './invoices/Invoices.module.css'
@@ -54,7 +55,7 @@ export default function MoneyDetailPage() {
     )
   }
 
-  const { document: d, party, allocations } = data
+  const { document: d, party, allocations, cheque, spentCheque } = data
   const cancelled = d.status === 'cancelled'
   const allocated = allocations.reduce((s, a) => s + a.amount, 0)
   const title = `${MONEY_KIND_LABELS[d.kind]} ${toPersianDigits(d.docNumber)}`
@@ -107,6 +108,32 @@ export default function MoneyDetailPage() {
           )}
         </dl>
       </div>
+      {cheque && (
+        <div className={inv.card} data-testid="cheque-detail">
+          <div className={styles.chequeTop}>
+            <strong>چک {toPersianDigits(cheque.number)}</strong>
+            <ChequeBadge status={cheque.status} />
+          </div>
+          <dl className={inv.info}>
+            <dt>بانک</dt>
+            <dd>{cheque.bank}</dd>
+            <dt>سررسید</dt>
+            <dd>{formatPersianDate(new Date(cheque.dueDate))}</dd>
+            {cheque.spentToName && (
+              <>
+                <dt>خرج‌شده به</dt>
+                <dd>{cheque.spentDocumentId ? <Link to={`/money/${cheque.spentDocumentId}`}>{cheque.spentToName}</Link> : cheque.spentToName}</dd>
+              </>
+            )}
+          </dl>
+          <ChequeActions cheque={cheque} onDone={reload} />
+        </div>
+      )}
+      {spentCheque && (
+        <p className={styles.meta}>
+          این پرداخت با خرج <Link to={`/money/${spentCheque.documentId}`}>چک {toPersianDigits(spentCheque.number)}</Link> ثبت شده است.
+        </p>
+      )}
       {(d.kind === 'receipt' || d.kind === 'payment') && (
         <div className={inv.card}>
           <strong>تسویه فاکتورها</strong>
@@ -132,7 +159,7 @@ export default function MoneyDetailPage() {
           {allocations.length > 0 && d.amount > allocated && <p className={styles.meta}>علی‌الحساب: {formatMoney(d.amount - allocated)}</p>}
         </div>
       )}
-      {!cancelled && d.source === 'manual' && (
+      {!cancelled && d.source === 'manual' && (!cheque || cheque.status === 'pending') && !(spentCheque && spentCheque.status === 'spent') && (
         <div className={inv.actionStack}>
           <Button variant="danger" icon="trash" block onClick={() => setAsking(true)}>
             ابطال سند

@@ -8,6 +8,7 @@ import { createPurchaseService } from './purchaseService'
 import { createSaleService } from './saleService'
 import { createExpenseService } from './expenseService'
 import { createMoneyService } from './moneyService'
+import { createChequeService } from './chequeService'
 import { createReportService } from './reportService'
 import { createReturnService, createTransferService } from './returnService'
 import { AppError } from '../utils/errors'
@@ -116,4 +117,11 @@ let moneyService: ReturnType<typeof createMoneyService> | null = null
 export function getMoney(): ReturnType<typeof createMoneyService> {
   moneyService ??= createMoneyService(getApp().db)
   return moneyService
+}
+
+let chequeService: ReturnType<typeof createChequeService> | null = null
+
+export function getCheques(): ReturnType<typeof createChequeService> {
+  chequeService ??= createChequeService(getApp().db)
+  return chequeService
 }

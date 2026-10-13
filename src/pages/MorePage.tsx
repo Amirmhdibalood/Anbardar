@@ -13,6 +13,7 @@ const ITEMS: { to: string; label: string; icon: IconName }[] = [
   { to: '/transfers', label: 'انتقال بین انبارها', icon: 'grid' },
   { to: '/more/parties', label: 'طرف حساب‌ها (مشتری و تأمین‌کننده)', icon: 'users' },
   { to: '/money', label: 'دریافت و پرداخت', icon: 'wallet' },
+  { to: '/cheques', label: 'چک‌ها و سررسیدها', icon: 'file' },
   { to: '/balances', label: 'بدهکاران و بستانکاران', icon: 'briefcase' },
   { to: '/more/warehouses', label: 'انبارها', icon: 'grid' },
   { to: '/more/settings', label: 'تنظیمات', icon: 'settings' },

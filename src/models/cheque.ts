@@ -46,3 +46,18 @@ export interface ChequeRow extends Cheque {
   /** طرفی که چک دریافتی به او خرج شده */
   spentToName: string | null
 }
+
+export const CHEQUE_TONES: Record<ChequeStatus, 'warning' | 'success' | 'error' | 'accent'> = {
+  pending: 'warning',
+  cleared: 'success',
+  bounced: 'error',
+  spent: 'accent',
+}
+
+/** روزهای مانده تا سررسید بر اساس روز تقویمی محلی (منفی = گذشته) */
+export function daysUntil(dueIso: string, now = new Date()): number {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+  const due = new Date(dueIso)
+  const d = new Date(due.getFullYear(), due.getMonth(), due.getDate()).getTime()
+  return Math.round((d - start) / (24 * 3600 * 1000))
+}

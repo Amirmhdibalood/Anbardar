@@ -41,6 +41,7 @@ const routes: RouteObject[] = [
           { path: 'parties/:id', ...page(() => import('../pages/PartyLedgerPage')) },
           { path: 'money', ...page(() => import('../pages/MoneyListPage')) },
           { path: 'money/:id', ...page(() => import('../pages/MoneyDetailPage')) },
+          { path: 'cheques', ...page(() => import('../pages/ChequesPage')) },
           { path: 'balances', ...page(() => import('../pages/BalancesPage')) },
           { path: 'more/warehouses', ...page(() => import('../pages/WarehousesPage')) },
           { path: 'more/settings', ...page(() => import('../pages/SettingsPage')) },
