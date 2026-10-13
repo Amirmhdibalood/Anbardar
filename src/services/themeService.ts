@@ -1,5 +1,5 @@
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core'
-import type { Accent, ResolvedTheme, ThemePreference } from '../models/settings'
+import type { AppFont, Accent, ResolvedTheme, ThemePreference } from '../models/settings'
 import { logger } from '../utils/logger'
 
 
@@ -51,4 +51,11 @@ export function withThemeTransition(change: () => void): void {
   root.classList.add('theme-transition')
   change()
   window.setTimeout(() => root.classList.remove('theme-transition'), 450)
+}
+
+/** اعمال فونت برنامه (data-font روی <html>؛ Vazirmatn بدون attribute) */
+export function applyFont(font: AppFont): void {
+  const root = document.documentElement
+  if (font === 'vazirmatn') root.removeAttribute('data-font')
+  else root.setAttribute('data-font', font)
 }

@@ -15,6 +15,7 @@ export class SqliteSettingsRepository implements SettingsRepository {
       theme: map.get('theme') ?? DEFAULT_SETTINGS.theme,
       accentDark: map.get('accent_dark') ?? DEFAULT_SETTINGS.accentDark,
       accentLight: map.get('accent_light') ?? DEFAULT_SETTINGS.accentLight,
+      font: map.get('font') ?? DEFAULT_SETTINGS.font,
       costMethod: map.get('cost_method') ?? DEFAULT_SETTINGS.costMethod,
       salePriceMode: map.get('sale_price_mode') ?? DEFAULT_SETTINGS.salePriceMode,
       markupBp: map.get('markup_bp') ?? DEFAULT_SETTINGS.markupBp,
@@ -28,6 +29,7 @@ export class SqliteSettingsRepository implements SettingsRepository {
       await tx.run(UPSERT, ['theme', clean.theme, now])
       await tx.run(UPSERT, ['accent_dark', clean.accentDark, now])
       await tx.run(UPSERT, ['accent_light', clean.accentLight, now])
+      await tx.run(UPSERT, ['font', clean.font, now])
       await tx.run(UPSERT, ['cost_method', clean.costMethod, now])
       await tx.run(UPSERT, ['sale_price_mode', clean.salePriceMode, now])
       await tx.run(UPSERT, ['markup_bp', String(clean.markupBp), now])

@@ -172,7 +172,7 @@ describe('seed', () => {
     assert.equal(await repos.settings.getValue(SETTING_KEYS.defaultWarehouseId), warehouses[0]?.id)
     assert.equal(await repos.settings.getValue(SETTING_KEYS.defaultCustomerId), customers[0]?.id)
     const settings = await repos.settings.load()
-    assert.deepEqual(settings, { theme: 'dark', accentDark: 'purple', accentLight: 'purple', costMethod: 'fifo', salePriceMode: 'last_sale', markupBp: 0 })
+    assert.deepEqual(settings, { theme: 'dark', accentDark: 'purple', accentLight: 'purple', font: 'vazirmatn', costMethod: 'fifo', salePriceMode: 'last_sale', markupBp: 0 })
   })
 
   it('protects the cash customer from deactivation and deletion', async () => {
@@ -198,8 +198,8 @@ describe('settings', () => {
     store.set(LEGACY_SETTINGS_KEY, JSON.stringify({ theme: 'system' }))
     assert.equal(await importLegacySettings(f.repos), false, 'only once')
     assert.equal((await f.repos.settings.load()).theme, 'light')
-    await f.repos.settings.save({ theme: 'system', accentDark: 'teal', accentLight: 'purple', costMethod: 'average', salePriceMode: 'markup', markupBp: 2500 })
-    assert.deepEqual(await f.repos.settings.load(), { theme: 'system', accentDark: 'teal', accentLight: 'purple', costMethod: 'average', salePriceMode: 'markup', markupBp: 2500 })
+    await f.repos.settings.save({ theme: 'system', accentDark: 'teal', accentLight: 'purple', font: 'vazirmatn', costMethod: 'average', salePriceMode: 'markup', markupBp: 2500 })
+    assert.deepEqual(await f.repos.settings.load(), { theme: 'system', accentDark: 'teal', accentLight: 'purple', font: 'vazirmatn', costMethod: 'average', salePriceMode: 'markup', markupBp: 2500 })
     delete (globalThis as { localStorage?: unknown }).localStorage
   })
 

@@ -206,3 +206,20 @@ User explicitly confirmed: ADD «ثبت هزینه» (expense entry). Proceed wi
   - Otherwise the app goes back in history; a root tab goes to Home.
   - On Home, pressing twice within 2s exits ("برای خروج دوباره بزنید").
 - Tests: `keyboard-back-check.mjs` and the device-matrix `walkthrough.sh` (360x780 / 412x915, 3-button / gesture, keyboard open / closed).
+
+## v1.1.3 (versionCode 6)
+- **تنظیمات ظاهری › تم:**
+  - Mode choice: روشن / تیره / مطابق سیستم.
+  - 5 accent swatches (purple, teal, emerald, gold, crimson) for the current mode, stored separately for dark and light (settings keys `accent_dark` / `accent_light`).
+  - Live preview card. Purple is the free default for both modes.
+  - The other accents carry a «ویژه» badge but stay selectable. The single flag `PREMIUM_ACCENTS_LOCKED` in `src/config/themes.ts` enforces the lock later (stage 6, Myket).
+- **Theme lamp:** top-left on Home and the root tabs (inner pages keep the back button there). A lit lamp means light/day; an unlit lamp means dark/night.
+  - Tapping it toggles the theme with a smooth transition (View Transitions, with a CSS-transition fallback, respecting reduced motion) and saves the setting.
+  - The status and navigation bar icons follow the theme through SystemBars.setStyle (both bars), and meta theme-color follows `--bg`.
+- index.html caches the accent (`anbardar.accent.v1`) so a cold start doesn't flash.
+- Tests: `scripts/e2e-theme.mjs` (20 checks); `theme` added to `walkthrough.sh`.
+- **Font (تنظیمات ظاهری › فونت):**
+  - Options: Vazirmatn (default; it was already the app's only font), Sahel (variable woff2) and Samim (400/500/700). All three are by rastikerdar, OFL 1.1, bundled locally in `src/assets/fonts`, with `font-display: swap` and no subsetting.
+  - Licenses are in `public/licenses/*-OFL.txt`.
+  - The choice is applied app-wide through `--font` / `html[data-font]`, persisted (settings key `font`) and cached for cold start, with a live preview line.
+  - Test: `scripts/e2e-fonts.mjs` (20 checks: Persian digits come from each font, and invoice numbers are neither clipped nor wrapped).

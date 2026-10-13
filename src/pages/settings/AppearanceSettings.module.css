@@ -33,3 +33,15 @@
 .pvRow { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--muted); padding: 10px; border-radius: 10px; background: var(--card); }
 .pvRow strong { color: var(--text); }
 .pvButton { text-align: center; padding: 10px; border-radius: 12px; background: var(--accent); color: var(--accent-contrast); font-weight: 700; font-size: 13px; }
+
+.fonts { display: flex; flex-direction: column; gap: 8px; }
+.fontOption {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: right;
+  padding: 10px 12px; min-height: 48px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: transparent; color: var(--text);
+}
+.fontOption[aria-checked='true'] { border-color: var(--accent); background: var(--accent-soft); }
+.fontOption:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.fontName { font-weight: 700; font-size: 14px; }
+.fontSample { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.fontPreview { margin-top: 12px; font-size: 14px; line-height: 2; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg); }

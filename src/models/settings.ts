@@ -6,6 +6,10 @@ export type ResolvedTheme = 'dark' | 'light'
 export const ACCENTS = ['purple', 'teal', 'emerald', 'gold', 'crimson'] as const
 export type Accent = (typeof ACCENTS)[number]
 
+/** فونت برنامه (همه OFL، داخل برنامه؛ آفلاین). Vazirmatn پیش‌فرض و فونت نسخه‌های قبلی است */
+export const FONTS = ['vazirmatn', 'sahel', 'samim'] as const
+export type AppFont = (typeof FONTS)[number]
+
 /** روش محاسبه بهای تمام‌شده برای سود: FIFO (پیش‌فرض)، میانگین موزون متحرک، آخرین قیمت خرید */
 export const COST_METHODS = ['fifo', 'average', 'last'] as const
 export type CostMethod = (typeof COST_METHODS)[number]
@@ -21,6 +25,7 @@ export interface AppSettings {
   theme: ThemePreference
   accentDark: Accent
   accentLight: Accent
+  font: AppFont
   costMethod: CostMethod
   salePriceMode: SalePriceMode
   /** درصد سود سراسری به صدم درصد (۲۵٪ = ۲۵۰۰) */
@@ -31,6 +36,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'dark',
   accentDark: 'purple',
   accentLight: 'purple',
+  font: 'vazirmatn',
   costMethod: 'fifo',
   salePriceMode: 'last_sale',
   markupBp: 0,
@@ -44,6 +50,7 @@ export function sanitizeSettings(raw: unknown): AppSettings {
     theme: THEME_PREFERENCES.find((t) => t === obj.theme) ?? DEFAULT_SETTINGS.theme,
     accentDark: ACCENTS.find((a) => a === obj.accentDark) ?? DEFAULT_SETTINGS.accentDark,
     accentLight: ACCENTS.find((a) => a === obj.accentLight) ?? DEFAULT_SETTINGS.accentLight,
+    font: FONTS.find((f) => f === obj.font) ?? DEFAULT_SETTINGS.font,
     costMethod: COST_METHODS.find((m) => m === obj.costMethod) ?? DEFAULT_SETTINGS.costMethod,
     salePriceMode: SALE_PRICE_MODES.find((m) => m === obj.salePriceMode) ?? DEFAULT_SETTINGS.salePriceMode,
     markupBp: Number.isSafeInteger(markup) && markup >= 0 && markup <= MAX_MARKUP_BP ? markup : DEFAULT_SETTINGS.markupBp,

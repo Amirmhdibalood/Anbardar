@@ -2,9 +2,16 @@ import { Card } from '../../components/Card'
 import { SegmentedControl, type SegmentOption } from '../../components/SegmentedControl'
 import { ACCENT_META, isAccentLocked, isPremiumAccent } from '../../config/themes'
 import { useSettings } from '../../hooks/useSettings'
-import { ACCENTS, type ThemePreference } from '../../models/settings'
+import { ACCENTS, FONTS, type AppFont, type ThemePreference } from '../../models/settings'
 import { resolveTheme } from '../../services/themeService'
 import styles from './AppearanceSettings.module.css'
+
+const FONT_META: Record<AppFont, { label: string; family: string }> = {
+  vazirmatn: { label: 'وزیرمتن (پیش‌فرض)', family: "'Vazirmatn', system-ui, sans-serif" },
+  sahel: { label: 'ساحل', family: "'Sahel', 'Vazirmatn', sans-serif" },
+  samim: { label: 'صمیم', family: "'Samim', 'Vazirmatn', sans-serif" },
+}
+const FONT_SAMPLE = 'فاکتور ۱۴۰۵/۰۷/۲۱ — جمع ۱۲٬۳۴۵٬۶۷۸ تومان'
 
 const MODE_OPTIONS: SegmentOption<ThemePreference>[] = [
   { value: 'light', label: 'روشن', icon: 'sun' },
@@ -14,7 +21,7 @@ const MODE_OPTIONS: SegmentOption<ThemePreference>[] = [
 
 /** «تنظیمات ظاهری»: حالت تم + رنگ تأکیدی همان حالت، با پیش‌نمایش زنده */
 export function AppearanceSettings() {
-  const { settings, setTheme, setAccent } = useSettings()
+  const { settings, setTheme, setAccent, setFont } = useSettings()
   const mode = resolveTheme(settings.theme)
   const current = mode === 'dark' ? settings.accentDark : settings.accentLight
   return (
@@ -70,6 +77,18 @@ export function AppearanceSettings() {
         </div>
         <span className={styles.pvButton}>ثبت فروش</span>
       </div>
+      <h3 className={styles.sub} style={{ marginTop: 18 }}>فونت</h3>
+      <div className={styles.fonts} role="radiogroup" aria-label="فونت برنامه" id="font-options">
+        {FONTS.map((f) => (
+          <button key={f} type="button" role="radio" aria-checked={settings.font === f} data-font-option={f} className={styles.fontOption} onClick={() => setFont(f)} style={{ fontFamily: FONT_META[f].family }}>
+            <span className={styles.fontName}>{FONT_META[f].label}</span>
+            <span className={styles.fontSample}>{FONT_SAMPLE}</span>
+          </button>
+        ))}
+      </div>
+      <p className={styles.fontPreview} data-testid="font-preview">
+        پیش‌نمایش: انبار مرکزی — ۲۴ عدد هدفون، ۱۲٫۵ کیلو برنج، مانده ۳٬۹۸۰٬۰۰۰ تومان
+      </p>
     </Card>
   )
 }

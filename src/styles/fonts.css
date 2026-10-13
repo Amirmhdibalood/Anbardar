@@ -5,3 +5,38 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* Sahel و Samim — هر دو از rastikerdar، مجوز SIL OFL 1.1 (public/licenses/) */
+@font-face {
+  font-family: 'Sahel';
+  src: url('../assets/fonts/Sahel-VF.woff2') format('woff2');
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Samim';
+  src: url('../assets/fonts/Samim.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Samim';
+  src: url('../assets/fonts/Samim-Medium.woff2') format('woff2');
+  font-weight: 500 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Samim';
+  src: url('../assets/fonts/Samim-Bold.woff2') format('woff2');
+  font-weight: 700 900;
+  font-display: swap;
+}
+
+/* انتخاب فونت در «تنظیمات ظاهری»: <html data-font="sahel|samim"> (پیش‌فرض Vazirmatn) */
+:root[data-font='sahel'] {
+  --font: 'Sahel', 'Vazirmatn', system-ui, sans-serif;
+}
+:root[data-font='samim'] {
+  --font: 'Samim', 'Vazirmatn', system-ui, sans-serif;
+}

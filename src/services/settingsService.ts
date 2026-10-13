@@ -21,10 +21,10 @@ export async function updateSettings(current: AppSettings, patch: Partial<AppSet
 }
 
 /** کش تم در localStorage فقط برای جلوگیری از چشمک هنگام شروع است؛ مرجع اصلی دیتابیس است */
-export function cacheTheme(settings: Pick<AppSettings, 'theme' | 'accentDark' | 'accentLight'>): void {
+export function cacheTheme(settings: Pick<AppSettings, 'theme' | 'accentDark' | 'accentLight' | 'font'>): void {
   try {
     localStorage.setItem(THEME_CACHE_KEY, settings.theme)
-    localStorage.setItem(ACCENT_CACHE_KEY, JSON.stringify({ dark: settings.accentDark, light: settings.accentLight }))
+    localStorage.setItem(ACCENT_CACHE_KEY, JSON.stringify({ dark: settings.accentDark, light: settings.accentLight, font: settings.font }))
   } catch {
     /* بی‌اهمیت */
   }

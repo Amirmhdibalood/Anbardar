@@ -54,3 +54,8 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
 - Checks: `node scripts/keyboard-back-check.mjs` (fake visualViewport via `scripts/lib/device.mjs`).
 - Device matrix: `scripts/walkthrough.sh`. Every e2e suite honours `DEVICE=360x780 INSETS=3btn|gesture KB=open`.
 - Never `git checkout` a file with uncommitted work.
+
+## v1.1.3: appearance
+- Theme: `models/settings.ts` (ACCENTS, accentDark/accentLight) and `config/themes.ts` (ACCENT_META, FREE_ACCENTS, PREMIUM_ACCENTS_LOCKED).
+- Applying it: `services/themeService.ts` applyTheme(mode, accent) and withThemeTransition. CSS tokens live in `styles/themes.css` (`[data-theme][data-accent]`).
+- UI: `pages/settings/AppearanceSettings.tsx` and `components/ThemeLamp.tsx`. PageHeader renders the lamp when a page has no back button.

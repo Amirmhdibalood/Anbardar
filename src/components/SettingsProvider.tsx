@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { SettingsContext, type SettingsContextValue } from '../hooks/settingsContext'
-import { DEFAULT_SETTINGS, type AppSettings, type CostMethod, type SalePriceMode, type ThemePreference, type Accent, type ResolvedTheme } from '../models/settings'
+import { DEFAULT_SETTINGS, type AppSettings, type CostMethod, type SalePriceMode, type ThemePreference, type Accent, type AppFont, type ResolvedTheme } from '../models/settings'
 import { cacheTheme, loadSettings, updateSettings } from '../services/settingsService'
-import { applyTheme, resolveTheme, watchSystemTheme, withThemeTransition } from '../services/themeService'
+import { applyFont, applyTheme, resolveTheme, watchSystemTheme, withThemeTransition } from '../services/themeService'
 import { logger } from '../utils/logger'
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
@@ -33,6 +33,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return settings.theme === 'system' ? watchSystemTheme(() => withThemeTransition(apply)) : undefined
   }, [ready, settings.theme, settings.accentDark, settings.accentLight])
 
+  useEffect(() => {
+    if (ready) applyFont(settings.font)
+  }, [ready, settings.font])
+
   const latest = useRef(settings)
   useEffect(() => {
     latest.current = settings
@@ -62,6 +66,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       settings,
       setTheme: (theme: ThemePreference) => patchAppearance({ theme }),
       setAccent: (mode: ResolvedTheme, accent: Accent) => patchAppearance(mode === 'dark' ? { accentDark: accent } : { accentLight: accent }),
+      setFont: (font: AppFont) => {
+        applyFont(font)
+        patch({ font })
+      },
       setCostMethod: (costMethod: CostMethod) => patch({ costMethod }),
       setSalePriceMode: (salePriceMode: SalePriceMode) => patch({ salePriceMode }),
       setMarkupBp: (markupBp: number) => patch({ markupBp }),
