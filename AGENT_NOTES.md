@@ -107,3 +107,5 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
   - New write rules MUST declare `dates`.
   - `createFiscalService` authorizes `fiscal.manage` (owner only) itself.
 - e2e: `scripts/e2e-stage5.mjs` (wait ~900ms before `page.reload()`, because sql.js persistence is debounced by 200ms). stage4 e2e skips the new recovery sheet.
+- Money form: `?lock=1&party=` hides the direction control and locks the party (`money-direction-locked`, `data-kind`). It is used from the PartyLedger buttons (filtered by balance sign) and from InvoicePaymentCard.
+- The general form calls `balanceOf` when a party is picked to choose the default direction (`money-direction-hint`), until the user changes the direction manually.

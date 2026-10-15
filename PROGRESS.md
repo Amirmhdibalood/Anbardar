@@ -274,3 +274,7 @@ Design note: `docs/stage2-units-landed-cheques.md`. Migration 007 (snapshot take
 - ✅ Fiscal periods (Migration 010):
   - Define a Jalali year, close it (locks its documents in the secured service layer and records party balances, stock and FIFO layers, and cash as the carry-forward), and reopen it (owner only, with confirmation, recorded in the activity log).
   - Fiscal periods are available as period chips in Reports.
+- ✅ Payment direction is locked by where the form was opened, to prevent mistakes:
+  - On a debtor's account page there is only «دریافت از او» (direction locked); on a creditor's, only «پرداخت به او».
+  - Forms opened from an invoice are locked the same way.
+  - The general receipts/payments form keeps both options, but its default comes from the sign of the party's balance.
