@@ -260,3 +260,17 @@ Design note: `docs/stage2-units-landed-cheques.md`. Migration 007 (snapshot take
 - ✅ کاربران با رمز، نقش‌ها (مالک/مدیر/فروشنده/انباردار)، اعمال دسترسی در لایه سرویس
 - ✅ گزارش فعالیت‌ها (فقط افزودنی) هم‌تراکنش با هر تغییر
 - ✅ صفحه قفل، قفل موقت پس از رمز اشتباه، قفل خودکار پس از ۵ دقیقه پس‌زمینه
+
+## v1.5.0 (versionCode 11): login options + stage 5 (fiscal periods)
+- ✅ The lock screen remembers the last user. Only the user id is kept, never the PIN.
+- ✅ «ورود با رمز» in Settings can turn login off. Owner only; turning it off asks for the owner's PIN.
+  - While off, the app opens straight in, acting as the first owner.
+  - Turning it off and on is recorded in the activity log.
+- ✅ «رمز را فراموش کردم» with two security questions.
+  - Answers are stored as a salted PBKDF2 hash after normalization.
+  - Wrong answers are locked out on the same scale as wrong PINs.
+  - Successful and failed attempts are recorded in the activity log.
+  - The setup sheet opens right after a PIN is created or changed, and can be skipped with a warning. It can be edited later from «بیشتر» with the current PIN.
+- ✅ Fiscal periods (Migration 010):
+  - Define a Jalali year, close it (locks its documents in the secured service layer and records party balances, stock and FIFO layers, and cash as the carry-forward), and reopen it (owner only, with confirmation, recorded in the activity log).
+  - Fiscal periods are available as period chips in Reports.

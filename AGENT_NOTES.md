@@ -87,3 +87,23 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
 - `services/authz.ts` (single-user mode = implicit owner, audited as «مالک»), `services/session.ts` (actor + usersOn store), `services/userService.ts` (PBKDF2 PINs, lockout 5 tries → 30 s doubling, audit list), `services/pin.ts`.
 - settings: appearance keys are free; others need settings.manage. Backup create/restore are audited; restore clears the session.
 - UI: `components/LockScreen.tsx` (RootShell gate; auto-lock after 5 min in background), `pages/UsersPage.tsx`, `pages/AuditLogPage.tsx`, `hooks/useSession.ts` (useCan for hiding only).
+
+## v1.5.0: login options, recovery, fiscal periods (stage 5)
+- Design: `docs/stage5-fiscal-periods.md`.
+- Migration 010 (`010_recovery_fiscal.ts`, all IF NOT EXISTS) creates `user_recovery`, `fiscal_periods` (no-overlap trigger, closed rows can't be deleted) and `fiscal_balances`.
+- `validateDump` requires these tables for v>=10.
+- **Login off:**
+  - Setting `login_required='0'`.
+  - `authz.currentActor` falls back to `defaultOwner()` when no session exists.
+  - RootShell sets the actor to the owner on start, and the auto-lock is skipped.
+  - Session snapshot has `loginOn`. `userService.setLoginRequired(on, ownerPin)`.
+- **Recovery:**
+  - `userService.setRecovery(userId, currentPin, {q1,a1,q2,a2})`, `recoveryQuestions(id)` (public), `recover(id, {a1,a2}, newPin)`.
+  - The shared `checkPin` (with lockout) is used by login, login-off and setRecovery.
+  - Answers go through `utils/answer.normalizeAnswer`.
+- Last user: `session.rememberLastUser` is called from setActor (localStorage `anbardar.lastUser.v1`, id only).
+- **Fiscal lock:**
+  - `Rule.dates(args, tx)` in `secured.ts`. guard() calls `assertDatesOpen(tx, [now, ...dates])` before the raw service runs.
+  - New write rules MUST declare `dates`.
+  - `createFiscalService` authorizes `fiscal.manage` (owner only) itself.
+- e2e: `scripts/e2e-stage5.mjs` (wait ~900ms before `page.reload()`, because sql.js persistence is debounced by 200ms). stage4 e2e skips the new recovery sheet.

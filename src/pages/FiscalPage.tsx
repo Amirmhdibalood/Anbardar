@@ -31,7 +31,7 @@ export default function FiscalPage() {
   const toast = useToast()
   const load = useCallback(() => (allowed ? getFiscal().list() : Promise.resolve([] as FiscalPeriod[])), [allowed])
   const { data: periods, reload } = useAsync(load)
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState(0)
   const [ask, setAsk] = useState<Ask | null>(null)
   const [openBalances, setOpenBalances] = useState<string | null>(null)
   const [nowIso] = useState(() => new Date().toISOString())
@@ -109,12 +109,19 @@ export default function FiscalPage() {
               )
             })}
           </ul>
-          <Button block icon="plus" onClick={() => setCreating(true)} data-testid="fiscal-add">
+          <Button block icon="plus" onClick={() => setCreating((n) => n + 1)} data-testid="fiscal-add">
             دوره جدید
           </Button>
         </>
       )}
-      <NewPeriodSheet open={creating} onClose={() => setCreating(false)} onDone={() => (setCreating(false), toast.show('دوره مالی تعریف شد.'), reload())} />
+      {creating > 0 && (
+        <NewPeriodSheet
+          key={creating}
+          defaultYear={periods?.length ? Math.max(...periods.map((p) => Number(p.endDay.slice(0, 4)))) + 1 : undefined}
+          onClose={() => setCreating(0)}
+          onDone={() => (setCreating(0), toast.show('دوره مالی تعریف شد.'), reload())}
+        />
+      )}
       <ConfirmSheet
         open={!!ask}
         title={ask?.kind === 'close' ? `بستن «${ask.period.name}»؟` : ask?.kind === 'reopen' ? `باز کردن دوباره «${ask.period.name}»؟` : 'حذف دوره؟'}
@@ -189,12 +196,13 @@ function BalancesView({ periodId }: { periodId: string }) {
   )
 }
 
-function NewPeriodSheet({ open, onClose, onDone }: { open: boolean; onClose: () => void; onDone: () => void }) {
+function NewPeriodSheet({ defaultYear, onClose, onDone }: { defaultYear?: number; onClose: () => void; onDone: () => void }) {
   const [thisYear] = useState(() => toJalali(new Date()).jy)
-  const [year, setYear] = useState(String(thisYear))
-  const [name, setName] = useState(jalaliYearRange(thisYear).name)
-  const [start, setStart] = useState(jalaliFromParam(jalaliYearRange(thisYear).startDay)!)
-  const [end, setEnd] = useState(jalaliFromParam(jalaliYearRange(thisYear).endDay)!)
+  const [first] = useState(() => defaultYear ?? thisYear)
+  const [year, setYear] = useState(String(first))
+  const [name, setName] = useState(jalaliYearRange(first).name)
+  const [start, setStart] = useState(jalaliFromParam(jalaliYearRange(first).startDay)!)
+  const [end, setEnd] = useState(jalaliFromParam(jalaliYearRange(first).endDay)!)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const pickYear = (y: string) => {
@@ -218,9 +226,9 @@ function NewPeriodSheet({ open, onClose, onDone }: { open: boolean; onClose: () 
       setBusy(false)
     }
   }
-  const years = Array.from({ length: 6 }, (_, i) => String(thisYear - 4 + i))
+  const years = [...new Set([...Array.from({ length: 6 }, (_, i) => thisYear - 4 + i), first])].sort().map(String)
   return (
-    <Sheet open={open} title="دوره مالی جدید" onClose={onClose}>
+    <Sheet open title="دوره مالی جدید" onClose={onClose}>
       <form className={styles.form} noValidate onSubmit={(e) => (e.preventDefault(), void save())} data-testid="fiscal-form">
         <Field label="سال شمسی" htmlFor="fiscal-year" hint="بازه پیش‌فرض: ۱ فروردین تا آخر اسفند همان سال.">
           <Picker id="fiscal-year" title="سال مالی" value={year} onChange={(y) => pickYear(y)} options={years.map((y) => ({ value: y, label: `سال ${toPersianDigits(y)}` }))} />

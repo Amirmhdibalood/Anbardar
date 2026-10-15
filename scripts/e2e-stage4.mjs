@@ -110,6 +110,16 @@ async function run(theme) {
     await page.click('[data-testid="lock-submit"]')
     await settle(600)
   }
+  // v1.5: بعد از ساخت رمز، برگه سؤال‌های بازیابی باز می‌شود؛ اینجا «فعلاً نه»
+  const skipRecovery = async () => {
+    await settle(300)
+    if (await exists('[data-testid="recovery-skip"]')) {
+      await page.click('[data-testid="recovery-skip"]')
+      await settle(250)
+      await page.click('[data-testid="recovery-skip-confirm"]')
+      await settle(300)
+    }
+  }
   const lock = async () => {
     await go('#/more')
     await page.click('[data-testid="lock-now"]')
@@ -132,7 +142,7 @@ async function run(theme) {
   await fill('#user-pin2', '1234')
   await page.click('[data-testid="user-save"]')
   check(t('owner created, users on'), await waitText('شما «مالک» هستید'))
-  await settle(400)
+  await skipRecovery()
   check(t('owner listed as (شما)'), (await page.$eval('[data-testid="users-list"]', (e) => e.innerText).catch(() => '')).includes('(شما)'))
   // ---- ۲) فروشنده
   await page.click('[data-testid="user-add"]')
@@ -145,7 +155,7 @@ async function run(theme) {
   await typeInto('#user-pin2', '5678')
   await page.click('[data-testid="user-save"]')
   check(t('seller added'), await waitText('کاربر اضافه شد'))
-  await settle(400)
+  await skipRecovery()
   await shot('users-list')
 
   // ---- ۳) داده: کالا + خرید (مالک)
