@@ -39,17 +39,18 @@ export type Permission =
   | 'settings.manage'
   | 'users.manage'
   | 'audit.view'
+  | 'fiscal.manage'
 
 const ALL: readonly Permission[] = [
   'sales.create', 'sales.cancel', 'returns.sale', 'purchases.create', 'purchases.cancel', 'returns.purchase',
   'stock.adjust', 'transfers.create', 'products.manage', 'parties.manage', 'money.create', 'money.cancel',
   'cheques.manage', 'expenses.manage', 'reports.view', 'costs.view', 'backup.create', 'backup.restore',
-  'settings.manage', 'users.manage', 'audit.view',
+  'settings.manage', 'users.manage', 'audit.view', 'fiscal.manage',
 ]
 
 export const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
   owner: new Set(ALL),
-  manager: new Set(ALL.filter((p) => !['backup.restore', 'settings.manage', 'users.manage'].includes(p))),
+  manager: new Set(ALL.filter((p) => !['backup.restore', 'settings.manage', 'users.manage', 'fiscal.manage'].includes(p))),
   seller: new Set<Permission>(['sales.create', 'returns.sale', 'parties.manage', 'money.create', 'backup.create']),
   storekeeper: new Set<Permission>(['purchases.create', 'returns.purchase', 'stock.adjust', 'transfers.create', 'products.manage', 'backup.create']),
 }
@@ -76,6 +77,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   'settings.manage': 'تغییر تنظیمات',
   'users.manage': 'مدیریت کاربران',
   'audit.view': 'دیدن گزارش فعالیت‌ها',
+  'fiscal.manage': 'مدیریت دوره‌های مالی',
 }
 
 export function can(role: Role | null | undefined, p: Permission): boolean {

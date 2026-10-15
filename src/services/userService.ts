@@ -3,9 +3,10 @@ import { ROLE_LABELS, ROLES, type Role } from '../models/permissions'
 import { AppError, ValidationError } from '../utils/errors'
 import { newId } from '../utils/id'
 import { cleanText } from '../validation/fields'
-import { authorize, currentActor, SINGLE_USER, usersEnabled, writeAudit } from './authz'
+import { normalizeAnswer } from '../utils/answer'
+import { authorize, currentActor, defaultOwner, loginRequired, SINGLE_USER, usersEnabled, writeAudit } from './authz'
 import { hashPin, PIN_ITERATIONS, PIN_PATTERN, verifyPin } from './pin'
-import { getActor, setActor, setUsersOn, type Actor } from './session'
+import { getActor, setActor, setLoginOn, setUsersOn, type Actor } from './session'
 
 export interface UserRow {
   id: string
@@ -37,7 +38,7 @@ function checkName(name: string): string {
   if (n.length > 60) throw new ValidationError({ name: 'نام کاربر نباید بیشتر از ۶۰ نویسه باشد.' })
   return n
 }
-function checkPin(pin: string): void {
+function checkPinFormat(pin: string): void {
   if (!PIN_PATTERN.test(pin)) throw new ValidationError({ pin: 'رمز باید ۴ تا ۸ رقم باشد.' })
 }
 function checkRole(role: string): Role {
@@ -57,6 +58,35 @@ const map = (r: SqlRow): UserRow => ({
 export function createUserService(db: SqlExecutor, opts: { pinIterations?: number; now?: () => number } = {}) {
   const iterations = opts.pinIterations ?? PIN_ITERATIONS
   const now = opts.now ?? (() => Date.now())
+
+  const lockFor = (fails: number) => (fails >= MAX_FAILS ? Math.min(MAX_LOCK_MS, BASE_LOCK_MS * 2 ** (fails - MAX_FAILS)) : 0)
+  const assertNotLocked = (lockedUntil: string | null, what: string) => {
+    const locked = lockedUntil ? Date.parse(lockedUntil) : 0
+    if (locked > now()) {
+      const sec = Math.ceil((locked - now()) / 1000)
+      throw new AppError('forbidden', `به‌خاطر چند تلاش اشتباه، ${what} تا ${sec.toLocaleString('fa-IR')} ثانیه دیگر بسته است.`)
+    }
+  }
+  /** بررسی رمز کاربر با شمارش اشتباه و قفل موقت (مشترک بین ورود، خاموش کردن ورود و سؤال‌های بازیابی) */
+  const checkPin = async (id: string, pin: string): Promise<Actor> => {
+    const u = await db.get<SqlRow>('SELECT * FROM users WHERE id = ? AND is_active = 1', [id])
+    if (!u) throw new AppError('not_found', 'کاربر پیدا نشد یا غیرفعال است.')
+    assertNotLocked(u.locked_until as string | null, 'ورود')
+    const ok = PIN_PATTERN.test(pin) && (await verifyPin(pin, { hash: u.pin_hash as string, salt: u.pin_salt as string, iterations: u.pin_iter as number }))
+    const name = u.name as string
+    const actorOf: Actor = { userId: id, name, role: u.role as Role }
+    if (!ok) {
+      const fails = (u.failed_attempts as number) + 1
+      const lockMs = lockFor(fails)
+      await db.transaction(async (tx) => {
+        await tx.run('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?', [fails, lockMs ? new Date(now() + lockMs).toISOString() : null, id])
+        await writeAudit(tx, { ...actorOf }, { action: 'auth.fail', entityType: 'user', entityId: id, summary: `رمز اشتباه برای «${name}»${lockMs ? ' — ورود موقتاً قفل شد' : ''}` })
+      })
+      throw new AppError('validation', lockMs ? `رمز اشتباه است. ورود ${Math.round(lockMs / 1000).toLocaleString('fa-IR')} ثانیه قفل شد.` : 'رمز اشتباه است.')
+    }
+    if ((u.failed_attempts as number) > 0) await db.run('UPDATE users SET failed_attempts = 0, locked_until = NULL WHERE id = ?', [id])
+    return actorOf
+  }
 
   return {
     enabled: () => usersEnabled(db),
@@ -78,7 +108,7 @@ export function createUserService(db: SqlExecutor, opts: { pinIterations?: numbe
     async create(input: { name: string; role: Role; pin: string }): Promise<UserRow> {
       const name = checkName(input.name)
       const role = checkRole(input.role)
-      checkPin(input.pin)
+      checkPinFormat(input.pin)
       const pin = await hashPin(input.pin, iterations)
       return db.transaction(async (tx) => {
         const first = !(await usersEnabled(tx))
@@ -119,7 +149,7 @@ export function createUserService(db: SqlExecutor, opts: { pinIterations?: numbe
     },
 
     async resetPin(id: string, pin: string): Promise<void> {
-      checkPin(pin)
+      checkPinFormat(pin)
       const h = await hashPin(pin, iterations)
       await db.transaction(async (tx) => {
         const actor = await authorize(tx, 'users.manage')
@@ -151,36 +181,109 @@ export function createUserService(db: SqlExecutor, opts: { pinIterations?: numbe
         await writeAudit(tx, actor, { action: 'users.disable', summary: 'حالت چندکاربره خاموش شد' })
         await tx.run('UPDATE users SET is_active = 0, updated_at = ? WHERE is_active = 1 AND id <> ?', [new Date().toISOString(), actor.userId ?? ''])
         if (actor.userId) await tx.run('UPDATE users SET is_active = 0, updated_at = ? WHERE id = ?', [new Date().toISOString(), actor.userId])
+        await tx.run("DELETE FROM settings WHERE key = 'login_required'")
       })
       setActor(null)
+      setLoginOn(true)
       setUsersOn(false)
     },
 
     /** ورود با PIN؛ پس از ۵ اشتباه، قفل موقت (۳۰ ثانیه، دوبرابر با هر اشتباه بعدی، حداکثر ۱۵ دقیقه) */
     async login(id: string, pin: string): Promise<Actor> {
-      const u = await db.get<SqlRow>('SELECT * FROM users WHERE id = ? AND is_active = 1', [id])
-      if (!u) throw new AppError('not_found', 'کاربر پیدا نشد یا غیرفعال است.')
-      const locked = u.locked_until ? Date.parse(u.locked_until as string) : 0
-      if (locked > now()) {
-        const sec = Math.ceil((locked - now()) / 1000)
-        throw new AppError('forbidden', `به‌خاطر چند رمز اشتباه، ورود تا ${sec.toLocaleString('fa-IR')} ثانیه دیگر بسته است.`)
-      }
-      const ok = PIN_PATTERN.test(pin) && (await verifyPin(pin, { hash: u.pin_hash as string, salt: u.pin_salt as string, iterations: u.pin_iter as number }))
-      const name = u.name as string
-      const actorOf: Actor = { userId: id, name, role: u.role as Role }
-      if (!ok) {
-        const fails = (u.failed_attempts as number) + 1
-        const lockMs = fails >= MAX_FAILS ? Math.min(MAX_LOCK_MS, BASE_LOCK_MS * 2 ** (fails - MAX_FAILS)) : 0
-        await db.transaction(async (tx) => {
-          await tx.run('UPDATE users SET failed_attempts = ?, locked_until = ? WHERE id = ?', [fails, lockMs ? new Date(now() + lockMs).toISOString() : null, id])
-          await writeAudit(tx, { ...actorOf }, { action: 'auth.fail', entityType: 'user', entityId: id, summary: `رمز اشتباه برای «${name}»${lockMs ? ' — ورود موقتاً قفل شد' : ''}` })
-        })
-        throw new AppError('validation', lockMs ? `رمز اشتباه است. ورود ${Math.round(lockMs / 1000).toLocaleString('fa-IR')} ثانیه قفل شد.` : 'رمز اشتباه است.')
-      }
+      const actorOf = await checkPin(id, pin)
       await db.transaction(async (tx) => {
         const at = new Date(now()).toISOString()
-        await tx.run('UPDATE users SET failed_attempts = 0, locked_until = NULL, last_login_at = ? WHERE id = ?', [at, id])
-        await writeAudit(tx, actorOf, { action: 'auth.login', entityType: 'user', entityId: id, summary: `ورود «${name}»` })
+        await tx.run('UPDATE users SET last_login_at = ? WHERE id = ?', [at, id])
+        await writeAudit(tx, actorOf, { action: 'auth.login', entityType: 'user', entityId: id, summary: `ورود «${actorOf.name}»` })
+      })
+      setActor(actorOf)
+      return actorOf
+    },
+
+    loginRequired: () => loginRequired(db),
+
+    /**
+     * روشن/خاموش کردن صفحه ورود (فقط مالک). خاموش کردن رمز مالک فعلی را می‌خواهد.
+     * در حالت خاموش برنامه مستقیم و به‌نام نخستین مالک باز می‌شود.
+     */
+    async setLoginRequired(on: boolean, ownerPin?: string): Promise<void> {
+      const actor = await db.transaction((tx) => authorize(tx, 'users.manage'))
+      if (actor.role !== 'owner' || !actor.userId) throw new AppError('forbidden', 'فقط مالک می‌تواند ورود را خاموش یا روشن کند.')
+      if (!on) await checkPin(actor.userId, ownerPin ?? '')
+      await db.transaction(async (tx) => {
+        await tx.run("INSERT INTO settings (key, value, updated_at) VALUES ('login_required', ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at", [on ? '1' : '0', new Date(now()).toISOString()])
+        await writeAudit(tx, actor, on ? { action: 'auth.login_on', summary: 'صفحه ورود روشن شد' } : { action: 'auth.login_off', summary: 'صفحه ورود خاموش شد؛ برنامه به‌نام مالک باز می‌شود' })
+      })
+      setLoginOn(on)
+      if (!on) setActor({ userId: actor.userId, name: actor.name, role: 'owner' })
+    },
+
+    /** کاربر پیش‌فرض حالت «بدون ورود» */
+    defaultOwner: () => defaultOwner(db),
+
+    /** سؤال‌های بازیابی یک کاربر (فقط متن سؤال؛ برای صفحه «رمز را فراموش کردم») */
+    async recoveryQuestions(userId: string): Promise<{ q1: string; q2: string } | null> {
+      const r = await db.get<{ q1: string; q2: string }>('SELECT r.q1, r.q2 FROM user_recovery r JOIN users u ON u.id = r.user_id WHERE r.user_id = ? AND u.is_active = 1', [userId])
+      return r ? { q1: r.q1, q2: r.q2 } : null
+    },
+
+    /** ثبت/ویرایش سؤال‌های بازیابی؛ همیشه با رمز فعلی همان کاربر */
+    async setRecovery(userId: string, currentPin: string, input: { q1: string; a1: string; q2: string; a2: string }): Promise<void> {
+      const q1 = cleanText(input.q1)
+      const q2 = cleanText(input.q2)
+      const a1 = normalizeAnswer(input.a1)
+      const a2 = normalizeAnswer(input.a2)
+      const errors: Record<string, string> = {}
+      if (q1.length < 3 || q1.length > 120) errors.q1 = 'سؤال اول را بنویسید (۳ تا ۱۲۰ نویسه).'
+      if (q2.length < 3 || q2.length > 120) errors.q2 = 'سؤال دوم را بنویسید (۳ تا ۱۲۰ نویسه).'
+      if (q1 && q2 && normalizeAnswer(q1) === normalizeAnswer(q2)) errors.q2 = 'دو سؤال باید با هم فرق داشته باشند.'
+      if (a1.length < 2) errors.a1 = 'پاسخ سؤال اول را بنویسید.'
+      if (a2.length < 2) errors.a2 = 'پاسخ سؤال دوم را بنویسید.'
+      if (Object.keys(errors).length) throw new ValidationError(errors)
+      const who = await checkPin(userId, currentPin)
+      const h1 = await hashPin(a1, iterations)
+      const h2 = await hashPin(a2, iterations)
+      await db.transaction(async (tx) => {
+        await tx.run(
+          `INSERT INTO user_recovery (user_id, q1, a1_hash, a1_salt, q2, a2_hash, a2_salt, iter, failed_attempts, locked_until, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?)
+ON CONFLICT(user_id) DO UPDATE SET q1 = excluded.q1, a1_hash = excluded.a1_hash, a1_salt = excluded.a1_salt, q2 = excluded.q2,
+  a2_hash = excluded.a2_hash, a2_salt = excluded.a2_salt, iter = excluded.iter, failed_attempts = 0, locked_until = NULL, updated_at = excluded.updated_at`,
+          [userId, q1, h1.hash, h1.salt, q2, h2.hash, h2.salt, iterations, new Date(now()).toISOString()],
+        )
+        await writeAudit(tx, (await currentActor(tx)) ?? who, { action: 'user.recovery', entityType: 'user', entityId: userId, summary: `سؤال‌های بازیابی «${who.name}» ثبت شد` })
+      })
+    },
+
+    /**
+     * «رمز را فراموش کردم»: هر دو پاسخ درست ← رمز تازه و ورود.
+     * پاسخ اشتباه مثل رمز اشتباه محدود می‌شود (شمارنده جدا).
+     */
+    async recover(userId: string, answers: { a1: string; a2: string }, newPin: string): Promise<Actor> {
+      if (!PIN_PATTERN.test(newPin)) throw new ValidationError({ pin: 'رمز باید ۴ تا ۸ رقم باشد.' })
+      const row = await db.get<SqlRow>('SELECT r.*, u.name, u.role FROM user_recovery r JOIN users u ON u.id = r.user_id WHERE r.user_id = ? AND u.is_active = 1', [userId])
+      if (!row) throw new AppError('not_found', 'برای این کاربر سؤال بازیابی ثبت نشده است. از مالک بخواهید رمز را عوض کند.')
+      const name = row.name as string
+      const actorOf: Actor = { userId, name, role: row.role as Role }
+      assertNotLocked(row.locked_until as string | null, 'بازیابی')
+      const iter = row.iter as number
+      const ok1 = await verifyPin(normalizeAnswer(answers.a1), { hash: row.a1_hash as string, salt: row.a1_salt as string, iterations: iter })
+      const ok2 = await verifyPin(normalizeAnswer(answers.a2), { hash: row.a2_hash as string, salt: row.a2_salt as string, iterations: iter })
+      if (!(ok1 && ok2)) {
+        const fails = (row.failed_attempts as number) + 1
+        const lockMs = lockFor(fails)
+        await db.transaction(async (tx) => {
+          await tx.run('UPDATE user_recovery SET failed_attempts = ?, locked_until = ? WHERE user_id = ?', [fails, lockMs ? new Date(now() + lockMs).toISOString() : null, userId])
+          await writeAudit(tx, actorOf, { action: 'auth.recover_fail', entityType: 'user', entityId: userId, summary: `پاسخ اشتباه بازیابی رمز برای «${name}»${lockMs ? ' — بازیابی موقتاً قفل شد' : ''}` })
+        })
+        throw new AppError('validation', lockMs ? `پاسخ‌ها درست نیست. بازیابی ${Math.round(lockMs / 1000).toLocaleString('fa-IR')} ثانیه قفل شد.` : 'پاسخ‌ها درست نیست.')
+      }
+      const h = await hashPin(newPin, iterations)
+      await db.transaction(async (tx) => {
+        const at = new Date(now()).toISOString()
+        await tx.run('UPDATE users SET pin_hash = ?, pin_salt = ?, pin_iter = ?, failed_attempts = 0, locked_until = NULL, last_login_at = ?, updated_at = ? WHERE id = ?', [h.hash, h.salt, h.iterations, at, at, userId])
+        await tx.run('UPDATE user_recovery SET failed_attempts = 0, locked_until = NULL WHERE user_id = ?', [userId])
+        await writeAudit(tx, actorOf, { action: 'auth.recover', entityType: 'user', entityId: userId, summary: `رمز «${name}» با سؤال‌های بازیابی عوض شد و وارد شد` })
       })
       setActor(actorOf)
       return actorOf

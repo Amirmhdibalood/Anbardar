@@ -13,6 +13,8 @@ const UNIQUE_MESSAGES: Record<string, string> = {
 
 /** پیام مربوط به Triggerهای دیتابیس (RAISE(ABORT, '<کد>')) */
 const TRIGGER_ERRORS: Record<string, AppError> = {
+  fiscal_overlap: new AppError('validation', 'این بازه با یک دوره مالی دیگر هم‌پوشانی دارد.'),
+  fiscal_closed: new AppError('immutable', 'دوره مالی بسته‌شده حذف نمی‌شود؛ اول آن را باز کنید.'),
   last_owner: new AppError('protected', 'دست‌کم یک «مالک» فعال باید بماند؛ اول مالک دیگری تعریف کنید.'),
   audit_immutable: new AppError('immutable', 'گزارش فعالیت‌ها قابل ویرایش یا حذف نیست.'),
   sub_unit_locked: new ValidationError({ subUnits: 'ضریب واحدی که در فاکتور استفاده شده قابل تغییر نیست؛ آن را حذف کنید و واحد دیگری بسازید.' }),

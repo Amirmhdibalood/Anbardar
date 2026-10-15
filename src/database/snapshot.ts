@@ -122,6 +122,7 @@ export function validateDump(raw: unknown, maxSchemaVersion: number): DumpValida
   const partyTables = d.schemaVersion >= 6 ? ['parties', 'money_documents', 'settlements'] : ['customers', 'suppliers']
   if (d.schemaVersion >= 7) partyTables.push('product_units', 'purchase_charges', 'cheques')
   if (d.schemaVersion >= 9) partyTables.push('users', 'audit_log')
+  if (d.schemaVersion >= 10) partyTables.push('user_recovery', 'fiscal_periods', 'fiscal_balances')
   for (const name of [...REQUIRED_TABLES, ...partyTables]) {
     if (!Array.isArray(d.tables[name])) return { ok: false, error: `جدول ضروری «${name}» در فایل نیست.` }
   }

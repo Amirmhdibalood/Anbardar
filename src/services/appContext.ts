@@ -1,3 +1,4 @@
+import { createFiscalService } from './fiscalService'
 import type { Database } from '../database/types'
 import { openAppDatabase } from '../database/open'
 import type { SnapshotStore } from '../database/snapshot'
@@ -156,4 +157,11 @@ let userService: ReturnType<typeof createUserService> | null = null
 export function getUsers(): ReturnType<typeof createUserService> {
   userService ??= createUserService(getApp().db)
   return userService
+}
+
+let fiscalService: ReturnType<typeof createFiscalService> | null = null
+/** دوره‌های مالی (مجوز داخل سرویس: فقط مالک) */
+export function getFiscal(): ReturnType<typeof createFiscalService> {
+  fiscalService ??= createFiscalService(getApp().db)
+  return fiscalService
 }

@@ -8,6 +8,7 @@ import { authorize, writeAudit, type AuditEntry, type EffectiveActor } from './a
 import { createCatalogService } from './catalogService'
 import { createChequeService } from './chequeService'
 import { createExpenseService } from './expenseService'
+import { assertDatesOpen } from './fiscalService'
 import { createStockService } from './inventoryService'
 import { createMoneyService } from './moneyService'
 import { createPurchaseService } from './purchaseService'
@@ -28,6 +29,11 @@ export interface Rule {
   after?: (result: any, actor: EffectiveActor) => void
   /** ثبت در گزارش فعالیت (نبودن = متد خواندنی) */
   audit?: (result: any, args: any[]) => AuditEntry
+  /**
+   * تاریخ(های) سندی که این عمل ایجاد یا ابطال می‌کند، برای قفل دوره مالی بسته.
+   * undefined یعنی «اکنون» (پیش‌فرض سرویس برای تاریخ خالی).
+   */
+  dates?: (args: any[], tx: SqlExecutor) => Promise<(string | null | undefined)[]> | (string | null | undefined)[]
   /** حذف اطلاعات حساس از خروجی برای نقش‌های محدود */
   redact?: (result: any, actor: EffectiveActor) => any
 }
@@ -51,6 +57,10 @@ export function guard<T extends object>(db: SqlExecutor, factory: (ex: SqlExecut
             db.transaction(async (tx) => {
               const actor = await authorize(tx, rule.perm)
               rule.extra?.(actor, args)
+              if (rule.dates) {
+                const now = new Date().toISOString()
+                await assertDatesOpen(tx, [now, ...(await rule.dates(args, tx)).map((d) => d ?? now)])
+              }
               const svc = factory(tx)
               const parent = getPath(svc, prefix)
               let result = await parent[k](...args)
@@ -73,31 +83,39 @@ export function guard<T extends object>(db: SqlExecutor, factory: (ex: SqlExecut
   return build(raw, []) as T
 }
 
+/** تاریخ سند ذخیره‌شده (برای ابطال) */
+const dateOf = (table: string, col: string) => async (args: any[], tx: SqlExecutor) => {
+  const r = await tx.get<{ d: string }>(`SELECT ${col} AS d FROM ${table} WHERE id = ?`, [args[0]])
+  return [r?.d]
+}
+const inputDate = (key: string, index = 0) => (args: any[]) => [args[index]?.[key]]
+const now = () => [undefined]
+
 const redactCosts = (d: any, actor: EffectiveActor) =>
   d && !can(actor.role, 'costs.view') ? { ...d, items: d.items.map((i: any) => ({ ...i, costs: { fifo: 0, average: 0, last: 0 } })), costsHidden: true } : d
 
 export const SALE_RULES: Record<string, Rule> = {
-  create: { perm: 'sales.create', audit: (r) => ({ action: 'sale.create', entityType: 'sales_invoice', entityId: r.invoice.id, summary: `فاکتور فروش ${n(r.invoice.invoiceNumber)} به مبلغ ${money(r.invoice.totalAmount)}` }) },
-  cancel: { perm: 'sales.cancel', audit: (_r, [id, reason]) => ({ action: 'sale.cancel', entityType: 'sales_invoice', entityId: id, summary: `ابطال فاکتور فروش${reason ? ` — دلیل: ${reason}` : ''}` }) },
+  create: { perm: 'sales.create', dates: inputDate('invoiceDate'), audit: (r) => ({ action: 'sale.create', entityType: 'sales_invoice', entityId: r.invoice.id, summary: `فاکتور فروش ${n(r.invoice.invoiceNumber)} به مبلغ ${money(r.invoice.totalAmount)}` }) },
+  cancel: { perm: 'sales.cancel', dates: dateOf('sales_invoices', 'invoice_date'), audit: (_r, [id, reason]) => ({ action: 'sale.cancel', entityType: 'sales_invoice', entityId: id, summary: `ابطال فاکتور فروش${reason ? ` — دلیل: ${reason}` : ''}` }) },
   detail: { perm: 'sales.create', redact: redactCosts },
 }
 export const SALE_READS = ['list', 'lastSalePrice', 'totalActive']
 
 export const PURCHASE_RULES: Record<string, Rule> = {
-  create: { perm: 'purchases.create', audit: (r) => ({ action: 'purchase.create', entityType: 'purchase_invoice', entityId: r.invoice.id, summary: `فاکتور خرید ${n(r.invoice.invoiceNumber)} به مبلغ ${money(r.invoice.totalAmount)}` }) },
-  cancel: { perm: 'purchases.cancel', audit: (_r, [id, reason]) => ({ action: 'purchase.cancel', entityType: 'purchase_invoice', entityId: id, summary: `ابطال فاکتور خرید${reason ? ` — دلیل: ${reason}` : ''}` }) },
+  create: { perm: 'purchases.create', dates: inputDate('invoiceDate'), audit: (r) => ({ action: 'purchase.create', entityType: 'purchase_invoice', entityId: r.invoice.id, summary: `فاکتور خرید ${n(r.invoice.invoiceNumber)} به مبلغ ${money(r.invoice.totalAmount)}` }) },
+  cancel: { perm: 'purchases.cancel', dates: dateOf('purchase_invoices', 'invoice_date'), audit: (_r, [id, reason]) => ({ action: 'purchase.cancel', entityType: 'purchase_invoice', entityId: id, summary: `ابطال فاکتور خرید${reason ? ` — دلیل: ${reason}` : ''}` }) },
 }
 export const PURCHASE_READS = ['list', 'detail', 'lastPurchasePrice']
 
 export const RETURN_RULES: Record<string, Rule> = {
-  createSaleReturn: { perm: 'returns.sale', audit: (r) => ({ action: 'return.sale', entityType: 'sale_return', entityId: r.id, summary: `برگشت فروش ${n(r.returnNumber)}` }) },
-  createPurchaseReturn: { perm: 'returns.purchase', audit: (r) => ({ action: 'return.purchase', entityType: 'purchase_return', entityId: r.id, summary: `برگشت خرید ${n(r.returnNumber)}` }) },
-  cancelSaleReturn: { perm: 'sales.cancel', audit: (_r, [id]) => ({ action: 'return.sale.cancel', entityType: 'sale_return', entityId: id, summary: 'ابطال برگشت فروش' }) },
+  createSaleReturn: { perm: 'returns.sale', dates: inputDate('docDate'), audit: (r) => ({ action: 'return.sale', entityType: 'sale_return', entityId: r.id, summary: `برگشت فروش ${n(r.returnNumber)}` }) },
+  createPurchaseReturn: { perm: 'returns.purchase', dates: inputDate('docDate'), audit: (r) => ({ action: 'return.purchase', entityType: 'purchase_return', entityId: r.id, summary: `برگشت خرید ${n(r.returnNumber)}` }) },
+  cancelSaleReturn: { perm: 'sales.cancel', dates: dateOf('sale_returns', 'doc_date'), audit: (_r, [id]) => ({ action: 'return.sale.cancel', entityType: 'sale_return', entityId: id, summary: 'ابطال برگشت فروش' }) },
 }
 export const RETURN_READS = ['listSaleReturns', 'listPurchaseReturns', 'saleReturnDetail', 'purchaseReturnDetail', 'saleReturnable', 'purchaseReturnable']
 
 export const TRANSFER_RULES: Record<string, Rule> = {
-  create: { perm: 'transfers.create', audit: (r) => ({ action: 'transfer.create', entityType: 'transfer', entityId: r.id, summary: `انتقال ${n(r.transferNumber)} بین انبارها` }) },
+  create: { perm: 'transfers.create', dates: inputDate('docDate'), audit: (r) => ({ action: 'transfer.create', entityType: 'transfer', entityId: r.id, summary: `انتقال ${n(r.transferNumber)} بین انبارها` }) },
 }
 export const TRANSFER_READS = ['list', 'detail']
 
@@ -106,28 +124,37 @@ const sellerReceiptsOnly = (actor: EffectiveActor, args: any[]) => {
 }
 const moneyAudit = (r: any) => ({ action: `money.${r.kind}`, entityType: 'money_document', entityId: r.id, summary: `${r.kind === 'receipt' ? 'دریافت' : 'پرداخت'} ${n(r.docNumber)} به مبلغ ${money(r.amount)}` })
 export const MONEY_RULES: Record<string, Rule> = {
-  create: { perm: 'money.create', extra: sellerReceiptsOnly, audit: moneyAudit },
+  create: { perm: 'money.create', extra: sellerReceiptsOnly, dates: inputDate('docDate'), audit: moneyAudit },
   settleBalance: {
     perm: 'money.create',
+    dates: now,
     after: (r, actor) => sellerReceiptsOnly(actor, [r]),
     audit: moneyAudit,
   },
-  createOpening: { perm: 'parties.manage', audit: (r) => ({ action: 'party.opening', entityType: 'money_document', entityId: r.id, summary: `مانده اول دوره به مبلغ ${money(r.amount)}` }) },
-  createPartyWithOpening: { perm: 'parties.manage', audit: (r) => ({ action: 'party.create', entityType: 'party', entityId: r.id, summary: `طرف حساب «${r.name}» اضافه شد` }) },
-  cancel: { perm: 'money.cancel', audit: (_r, [id, reason]) => ({ action: 'money.cancel', entityType: 'money_document', entityId: id, summary: `ابطال سند دریافت/پرداخت${reason ? ` — دلیل: ${reason}` : ''}` }) },
+  createOpening: { perm: 'parties.manage', dates: inputDate('docDate'), audit: (r) => ({ action: 'party.opening', entityType: 'money_document', entityId: r.id, summary: `مانده اول دوره به مبلغ ${money(r.amount)}` }) },
+  createPartyWithOpening: { perm: 'parties.manage', dates: inputDate('docDate', 1), audit: (r) => ({ action: 'party.create', entityType: 'party', entityId: r.id, summary: `طرف حساب «${r.name}» اضافه شد` }) },
+  cancel: { perm: 'money.cancel', dates: dateOf('money_documents', 'doc_date'), audit: (_r, [id, reason]) => ({ action: 'money.cancel', entityType: 'money_document', entityId: id, summary: `ابطال سند دریافت/پرداخت${reason ? ` — دلیل: ${reason}` : ''}` }) },
 }
 export const MONEY_READS = ['settlePlan', 'get', 'list', 'settlementsOf', 'openInvoices', 'invoiceSettlement', 'invoiceSettlements', 'documentsForInvoice', 'balanceOf', 'ledger', 'detail', 'balanceMap', 'balancesReport']
 
+/** برگشت چک سند دریافت (و پرداخت خرج‌شده) را باطل می‌کند */
+const chequeDates = async (args: any[], tx: SqlExecutor) => {
+  const r = await tx.get<{ a: string | null; b: string | null }>(
+    'SELECT d.doc_date AS a, s.doc_date AS b FROM cheques c JOIN money_documents d ON d.id = c.document_id LEFT JOIN money_documents s ON s.id = c.spent_document_id WHERE c.id = ?',
+    [args[0]],
+  )
+  return [r?.a, r?.b ?? null]
+}
 export const CHEQUE_RULES: Record<string, Rule> = {
-  clear: { perm: 'cheques.manage', audit: (_r, [id]) => ({ action: 'cheque.clear', entityType: 'cheque', entityId: id, summary: 'وصول چک' }) },
-  bounce: { perm: 'cheques.manage', audit: (_r, [id]) => ({ action: 'cheque.bounce', entityType: 'cheque', entityId: id, summary: 'برگشت خوردن چک' }) },
-  spend: { perm: 'cheques.manage', audit: (_r, [id]) => ({ action: 'cheque.spend', entityType: 'cheque', entityId: id, summary: 'خرج چک به طرف حساب' }) },
+  clear: { perm: 'cheques.manage', dates: now, audit: (_r, [id]) => ({ action: 'cheque.clear', entityType: 'cheque', entityId: id, summary: 'وصول چک' }) },
+  bounce: { perm: 'cheques.manage', dates: chequeDates, audit: (_r, [id]) => ({ action: 'cheque.bounce', entityType: 'cheque', entityId: id, summary: 'برگشت خوردن چک' }) },
+  spend: { perm: 'cheques.manage', dates: inputDate('docDate', 2), audit: (_r, [id]) => ({ action: 'cheque.spend', entityType: 'cheque', entityId: id, summary: 'خرج چک به طرف حساب' }) },
 }
 export const CHEQUE_READS = ['get', 'list', 'dueUntil']
 
 export const EXPENSE_RULES: Record<string, Rule> = {
-  create: { perm: 'expenses.manage', audit: (r) => ({ action: 'expense.create', entityType: 'expense', entityId: r.id, summary: `هزینه به مبلغ ${money(r.amount)}` }) },
-  cancel: { perm: 'expenses.manage', audit: (_r, [id]) => ({ action: 'expense.cancel', entityType: 'expense', entityId: id, summary: 'ابطال هزینه' }) },
+  create: { perm: 'expenses.manage', dates: inputDate('expenseDate'), audit: (r) => ({ action: 'expense.create', entityType: 'expense', entityId: r.id, summary: `هزینه به مبلغ ${money(r.amount)}` }) },
+  cancel: { perm: 'expenses.manage', dates: dateOf('expenses', 'expense_date'), audit: (_r, [id]) => ({ action: 'expense.cancel', entityType: 'expense', entityId: id, summary: 'ابطال هزینه' }) },
   list: { perm: 'expenses.manage' },
   getById: { perm: 'expenses.manage' },
 }
@@ -141,7 +168,7 @@ export const REPORT_RULES: Record<string, Rule> = {
 export const REPORT_READS = ['stockAlerts']
 
 export const STOCK_RULES: Record<string, Rule> = {
-  adjust: { perm: 'stock.adjust', audit: (r) => ({ action: 'stock.adjust', entityType: 'stock_movement', entityId: r.id, summary: `اصلاح موجودی (${r.quantityDelta > 0 ? 'افزایش' : 'کاهش'})` }) },
+  adjust: { perm: 'stock.adjust', dates: inputDate('occurredAt'), audit: (r) => ({ action: 'stock.adjust', entityType: 'stock_movement', entityId: r.id, summary: `اصلاح موجودی (${r.quantityDelta > 0 ? 'افزایش' : 'کاهش'})` }) },
 }
 export const STOCK_READS = ['overview', 'totals', 'levelsForProduct', 'recentMovements', 'suggestedUnitCost']
 

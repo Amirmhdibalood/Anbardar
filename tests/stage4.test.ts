@@ -32,7 +32,7 @@ beforeEach(() => setActor(null))
 
 describe('stage 4: permission matrix', () => {
   it('owner has everything; manager no users/restore/settings; seller and storekeeper limited', () => {
-    assert.equal(ROLE_PERMISSIONS.owner.size, 21)
+    assert.equal(ROLE_PERMISSIONS.owner.size, 22)
     assert.ok(!can('manager', 'users.manage') && !can('manager', 'backup.restore') && can('manager', 'sales.cancel'))
     assert.ok(can('seller', 'sales.create') && !can('seller', 'sales.cancel') && !can('seller', 'costs.view') && !can('seller', 'purchases.create'))
     assert.ok(can('storekeeper', 'stock.adjust') && can('storekeeper', 'purchases.create') && !can('storekeeper', 'sales.create') && !can('storekeeper', 'money.create'))
