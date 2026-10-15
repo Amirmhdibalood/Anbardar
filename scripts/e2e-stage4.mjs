@@ -101,6 +101,10 @@ async function run(theme) {
     await page.type(sel, v)
   }
   const login = async (name, pin) => {
+    // v1.5: آخرین کاربر از قبل انتخاب شده؛ برای کاربر دیگر «کاربر دیگر»
+    if (!(await exists('[data-testid="lock-user"]')) && !(await body()).includes(`ورود ${name}`)) {
+      await clickText('کاربر دیگر')
+    }
     if (await exists('[data-testid="lock-user"]')) {
       const [u] = await page.$$(`xpath/.//button[@data-testid="lock-user"][contains(., "${name}")]`)
       await u.click()
@@ -173,6 +177,8 @@ async function run(theme) {
   // ---- ۴) قفل و ورود فروشنده (با یک رمز اشتباه)
   await lock()
   check(t('lock screen shown'), await exists('[data-testid="lock-screen"]'))
+  check(t('lock screen preselects the last user'), (await body()).includes('ورود علی' + sfx))
+  await clickText('کاربر دیگر')
   check(t('lock screen lists both users'), (await page.$$('[data-testid="lock-user"]')).length === 2)
   await shot('lock-screen')
   await login('سارا', '0000')

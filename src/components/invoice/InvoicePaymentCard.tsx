@@ -63,7 +63,7 @@ export function InvoicePaymentCard({ kind, invoiceId, partyId, systemParty, canc
           </div>
         ))}
       {s.remaining > 0 && !systemParty && (
-        <ButtonLink icon="wallet" block to={`/money/new?kind=${kind === 'sales' ? 'receipt' : 'payment'}&party=${partyId}&invoice=${invoiceId}`}>
+        <ButtonLink icon="wallet" block to={`/money/new?kind=${kind === 'sales' ? 'receipt' : 'payment'}&party=${partyId}&invoice=${invoiceId}&lock=1`}>
           {kind === 'sales' ? 'ثبت دریافت برای این فاکتور' : 'ثبت پرداخت برای این فاکتور'}
         </ButtonLink>
       )}

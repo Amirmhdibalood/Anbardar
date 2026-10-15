@@ -311,6 +311,62 @@ async function run(theme) {
   check(t('fiscal chip applies its range'), (await body()).includes('۱ فروردین ۱۴۰۴ تا ۲۹ اسفند ۱۴۰۴'))
   await shot('reports-fiscal')
 
+
+  // ---- ۷ب) جهت دریافت/پرداخت از روی مانده طرف حساب
+  const newParty = async (name, amount, credit) => {
+    await go('#/more/parties')
+    await page.click('button[aria-label="طرف حساب جدید"]')
+    await settle(300)
+    await page.type('#party-name', name)
+    await page.type('#party-opening', amount)
+    await settle(200)
+    if (credit) await page.$$eval('[role="dialog"] [role="radio"]', (els) => els.find((e) => e.textContent.includes('من به او بدهکارم'))?.click())
+    await settle(150)
+    await dialogClick('افزودن طرف حساب')
+    await waitText(credit ? 'بستانکار' : 'بدهکار')
+    await settle(400)
+    return page.url()
+  }
+  const hasLink = (text) => page.$$eval('a', (as, x) => as.some((a) => a.textContent.includes(x)), text)
+  const debtor = 'بدهکار نمونه' + sfx
+  const creditor = 'طلبکار نمونه' + sfx
+  const debtorUrl = await newParty(debtor, '40000', false)
+  check(t('debtor ledger offers only «دریافت از او»'), (await hasLink('دریافت از او')) && !(await hasLink('پرداخت به او')))
+  await clickText('دریافت از او', 'a')
+  await settle(500)
+  const lr = await page.$eval('[data-testid="money-direction-locked"]', (e) => e.dataset.kind + '|' + e.innerText).catch(() => '')
+  check(t('collect debt: direction locked to receipt'), lr.startsWith('receipt|') && lr.includes(`دریافت از ${debtor}`), lr)
+  check(t('collect debt: no payment option, party fixed'), !(await exists('[data-testid="money-form"] [role="radio"]')) && !(await body()).includes('پرداخت (به او دادم)') && (await page.$eval('#money-party', (e) => e.disabled)))
+  await shot('money-locked-receipt')
+  await back()
+  await settle(300)
+  await newParty(creditor, '60000', true)
+  check(t('creditor ledger offers only «پرداخت به او»'), (await hasLink('پرداخت به او')) && !(await hasLink('دریافت از او')))
+  await clickText('پرداخت به او', 'a')
+  await settle(500)
+  const lp = await page.$eval('[data-testid="money-direction-locked"]', (e) => e.dataset.kind + '|' + e.innerText).catch(() => '')
+  check(t('pay debt: direction locked to payment'), lp.startsWith('payment|') && lp.includes(`پرداخت به ${creditor}`), lp)
+  check(t('pay debt: no receipt option'), !(await exists('[data-testid="money-form"] [role="radio"]')) && !(await body()).includes('دریافت (از او گرفتم)'))
+  await fill('#money-amount', '60000')
+  await clickText('ثبت پرداخت')
+  check(t('locked payment saved'), await waitText('پرداخت ثبت شد'))
+  await shot('money-locked-payment')
+  // صفحه عمومی: دو گزینه می‌ماند، پیش‌فرض از علامت مانده
+  await go('#/money/new?kind=receipt')
+  check(t('generic page keeps both directions'), (await page.$$('[data-testid="money-form"] [role="radio"]')).length === 2)
+  await newParty(creditor + '۲', '25000', true)
+  await go('#/money/new?kind=receipt')
+  await pick(page, '#money-party', creditor + '۲')
+  await settle(500)
+  const sel = await page.$eval('[data-testid="money-form"] [role="radio"][aria-checked="true"]', (e) => e.textContent).catch(() => '')
+  check(t('generic page defaults to payment for a creditor'), sel.includes('پرداخت') && (await body()).includes('«پرداخت» انتخاب شد'), sel)
+  await pick(page, '#money-party', debtor)
+  await settle(500)
+  const sel2 = await page.$eval('[data-testid="money-form"] [role="radio"][aria-checked="true"]', (e) => e.textContent).catch(() => '')
+  check(t('generic page defaults to receipt for a debtor'), sel2.includes('دریافت'), sel2)
+  await shot('money-generic-default')
+  void debtorUrl
+
   // ---- ۸) گزارش فعالیت
   await go('#/more/audit')
   await settle(500)

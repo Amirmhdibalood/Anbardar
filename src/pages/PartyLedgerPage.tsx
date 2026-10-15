@@ -100,12 +100,17 @@ export default function PartyLedgerPage() {
         </p>
       ) : (
         <div className={styles.actions}>
-          <ButtonLink icon="wallet" to={`/money/new?kind=receipt&party=${party.id}`}>
-            دریافت از او
-          </ButtonLink>
-          <ButtonLink variant="secondary" icon="wallet" to={`/money/new?kind=payment&party=${party.id}`}>
-            پرداخت به او
-          </ButtonLink>
+          {/* جهت از روی مانده: بدهکار ← فقط دریافت؛ بستانکار ← فقط پرداخت؛ صاف ← هر دو */}
+          {balance >= 0 && (
+            <ButtonLink icon="wallet" to={`/money/new?kind=receipt&party=${party.id}&lock=1`}>
+              دریافت از او
+            </ButtonLink>
+          )}
+          {balance <= 0 && (
+            <ButtonLink variant={balance < 0 ? 'primary' : 'secondary'} icon="wallet" to={`/money/new?kind=payment&party=${party.id}&lock=1`}>
+              پرداخت به او
+            </ButtonLink>
+          )}
           <Button variant="secondary" icon="plus" onClick={() => setOpening(true)}>
             مانده اول دوره
           </Button>

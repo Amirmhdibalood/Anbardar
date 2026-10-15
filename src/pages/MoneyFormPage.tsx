@@ -41,6 +41,11 @@ export default function MoneyFormPage() {
   const toast = useToast()
   const [kind, setKind] = useState<Kind>(params.get('kind') === 'payment' ? 'payment' : 'receipt')
   const [partyId, setPartyId] = useState(params.get('party') ?? '')
+  // باز شده از «دریافت از او / پرداخت به او» طرف حساب یا فاکتور: جهت و طرف قفل است (جلوگیری از اشتباه جهت)
+  const locked = params.get('lock') === '1' && !!params.get('party')
+  // صفحه عمومی: جهت پیش‌فرض از علامت مانده طرف حساب، تا وقتی کاربر خودش جهت را عوض نکرده
+  const [kindTouched, setKindTouched] = useState(false)
+  const [autoHint, setAutoHint] = useState<string | null>(null)
   const invoiceParam = params.get('invoice')
   const goBack = useGoBack(partyId ? `/parties/${partyId}` : '/money')
   // شناسه یکتای فرم: دو بار زدن «ثبت» یا تکرار درخواست فقط یک سند می‌سازد
@@ -138,7 +143,23 @@ export default function MoneyFormPage() {
     }
   }
 
-  const title = kind === 'receipt' ? 'دریافت جدید' : 'پرداخت جدید'
+  const pickParty = (v: string) => {
+    setPartyId(v)
+    setAlloc({})
+    setAutoHint(null)
+    if (kindTouched || !v) return
+    void getMoney()
+      .balanceOf(v)
+      .then((b) => {
+        if (b === 0) return
+        const k: Kind = b > 0 ? 'receipt' : 'payment'
+        setKind(k)
+        setAutoHint(b > 0 ? 'این طرف به شما بدهکار است؛ «دریافت» انتخاب شد.' : 'شما به این طرف بدهکارید؛ «پرداخت» انتخاب شد.')
+      })
+      .catch(() => undefined)
+  }
+  const lockedParty = locked ? parties.data?.find((p) => p.id === partyId) : undefined
+  const title = locked ? (kind === 'receipt' ? 'دریافت طلب' : 'پرداخت بدهی') : kind === 'receipt' ? 'دریافت جدید' : 'پرداخت جدید'
   if (parties.data && choices.length === 0) {
     return (
       <>
@@ -153,21 +174,36 @@ export default function MoneyFormPage() {
       <PageHeader title={title} onBack={leave.back} />
       {leave.confirm}
       <form className={styles.form} noValidate onSubmit={(e) => (e.preventDefault(), void save())} data-testid="money-form">
-        <SegmentedControl
-          label="نوع سند"
-          options={[
-            { value: 'receipt', label: 'دریافت (از او گرفتم)' },
-            { value: 'payment', label: 'پرداخت (به او دادم)' },
-          ]}
-          value={kind}
-          onChange={(k) => (setKind(k), setAlloc({}))}
-        />
+        {locked ? (
+          <div className={styles.lockedKind} data-testid="money-direction-locked" data-kind={kind}>
+            <strong>{kind === 'receipt' ? `دریافت از ${lockedParty?.name ?? ''}` : `پرداخت به ${lockedParty?.name ?? ''}`}</strong>
+            <span>{kind === 'receipt' ? 'پولی که از او می‌گیرید؛ بدهی او کم می‌شود.' : 'پولی که به او می‌دهید؛ بدهی شما به او کم می‌شود.'}</span>
+          </div>
+        ) : (
+          <>
+            <SegmentedControl
+              label="نوع سند"
+              options={[
+                { value: 'receipt', label: 'دریافت (از او گرفتم)' },
+                { value: 'payment', label: 'پرداخت (به او دادم)' },
+              ]}
+              value={kind}
+              onChange={(k) => (setKind(k), setKindTouched(true), setAutoHint(null), setAlloc({}))}
+            />
+            {autoHint && (
+              <p className={styles.meta} data-testid="money-direction-hint">
+                {autoHint}
+              </p>
+            )}
+          </>
+        )}
         <Field label="طرف حساب" required htmlFor="money-party" error={errors['partyId']}>
           <Picker
             id="money-party"
             title="طرف حساب"
             value={partyId}
-            onChange={(v) => (setPartyId(v), setAlloc({}))}
+            disabled={locked}
+            onChange={pickParty}
             invalid={!!errors['partyId']}
             options={choices.map((p) => ({ value: p.id, label: p.name, description: partyRoleLabel(p) }))}
             emptyText="طرف حسابی ندارید."

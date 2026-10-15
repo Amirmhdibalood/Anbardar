@@ -185,3 +185,7 @@ a.row:active {
   color: var(--warning);
   font-weight: 600;
 }
+.lockedKind { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; background: var(--accent-soft); color: var(--text); }
+.lockedKind strong { font-size: 15px; }
+.lockedKind span { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.lockedKind[data-kind='payment'] { background: var(--warning-soft); }
