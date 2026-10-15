@@ -8,6 +8,7 @@ import { costMethodLabel, salePriceModeLabel } from '../services/pricing'
 import { toPersianDigits } from '../utils/persian'
 import styles from './SettingsPage.module.css'
 import { AppearanceSettings } from './settings/AppearanceSettings'
+import { LoginSettings } from './settings/LoginSettings'
 import { useState } from 'react'
 
 export default function SettingsPage() {
@@ -41,6 +42,8 @@ export default function SettingsPage() {
       <PageHeader title="تنظیمات" backTo="/more" />
 
       <AppearanceSettings />
+
+      <LoginSettings />
 
       <Card className={styles.group}>
         <h2 className={styles.heading}>روش محاسبه سود</h2>

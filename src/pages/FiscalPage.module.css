@@ -1,0 +1,20 @@
+.list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.row { padding: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.who span { color: var(--muted); font-size: 12px; }
+.meta { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.actions button { color: var(--accent); font-size: 13px; font-weight: 700; padding: 6px 10px; border-radius: 10px; background: var(--accent-soft); }
+.actions .danger { color: var(--error); background: var(--error-soft); }
+.balances { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border); padding-top: 10px; }
+.totals { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.totals div { padding: 8px 10px; border-radius: 10px; background: var(--bg); }
+.totals dt { color: var(--muted); font-size: 12px; }
+.totals dd { margin: 2px 0 0; font-weight: 700; font-size: 14px; }
+.mini { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.mini li { display: flex; justify-content: space-between; gap: 8px; }
+.mini li span:last-child { color: var(--muted); white-space: nowrap; }
+.form { display: flex; flex-direction: column; gap: 12px; padding-bottom: 8px; }
+.dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.error { margin: 0; color: var(--error); font-size: 13px; }

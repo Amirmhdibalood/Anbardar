@@ -49,6 +49,7 @@ const routes: RouteObject[] = [
           { path: 'more/backup', ...page(() => import('../pages/BackupPage')) },
           { path: 'more/help', ...page(() => import('../pages/HelpPage')) },
           { path: 'more/users', ...page(() => import('../pages/UsersPage')) },
+          { path: 'more/fiscal', ...page(() => import('../pages/FiscalPage')) },
           { path: 'more/audit', ...page(() => import('../pages/AuditLogPage')) },
           { path: 'transfers', ...page(() => import('../pages/TransfersPage')) },
           { path: 'transfers/:id', ...page(() => import('../pages/TransferDetailPage')) },

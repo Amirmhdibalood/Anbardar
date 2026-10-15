@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useCan } from '../hooks/useSession'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/Badge'
@@ -13,7 +13,8 @@ import { PieChart, type ChartSlice } from '../components/PieChart'
 import { useAsync } from '../hooks/useAsync'
 import { useSettings } from '../hooks/useSettings'
 import { expenseCategoryLabel } from '../models/expense'
-import { getCatalog, getPurchases, getReports, getSales } from '../services/appContext'
+import { getCatalog, getFiscal, getPurchases, getReports, getSales } from '../services/appContext'
+import type { FiscalPeriod } from '../services/fiscalService'
 import { costMethodLabel } from '../services/pricing'
 import type { IncomeSpending, ProductProfitRow, ProfitLoss, StockAlerts } from '../services/reportService'
 import { formatPersianDateTime } from '../utils/date'
@@ -60,6 +61,26 @@ function ReportsContent() {
   const tab = (params.get('t') as Tab | null) ?? 'summary'
   const spec = periodFromParams(params)
   const period = resolvePeriod(spec)
+  // دوره‌های مالی تعریف‌شده به‌عنوان بازه آماده
+  const [fiscal, setFiscal] = useState<FiscalPeriod[]>([])
+  useEffect(() => {
+    void getFiscal()
+      .list()
+      .then(setFiscal)
+      .catch(() => setFiscal([]))
+  }, [])
+  const fiscalSelected = spec.key === 'custom' ? fiscal.find((f) => f.startDay === params.get('from') && f.endDay === params.get('to')) : undefined
+  const setFiscalPeriod = (f: FiscalPeriod) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('p', 'custom')
+        next.set('from', f.startDay)
+        next.set('to', f.endDay)
+        return next
+      },
+      { replace: true },
+    )
 
   const setTab = (t: Tab) =>
     setParams(
@@ -118,10 +139,17 @@ function ReportsContent() {
         <>
           <div className={styles.presets}>
             {PERIOD_KEYS.map((k) => (
-              <Chip key={k} label={PERIOD_LABELS[k]} selected={spec.key === k} onClick={() => setPeriodKey(k)} />
+              <Chip key={k} label={PERIOD_LABELS[k]} selected={spec.key === k && !fiscalSelected} onClick={() => setPeriodKey(k)} />
             ))}
           </div>
-          {spec.key === 'custom' && (
+          {fiscal.length > 0 && (
+            <div className={styles.presets} data-testid="fiscal-presets">
+              {fiscal.map((f) => (
+                <Chip key={f.id} label={`${f.name}${f.status === 'closed' ? ' (بسته)' : ''}`} selected={fiscalSelected?.id === f.id} onClick={() => setFiscalPeriod(f)} />
+              ))}
+            </div>
+          )}
+          {spec.key === 'custom' && !fiscalSelected && (
             <div className={styles.range}>
               <div>
                 <div className={styles.rangeLabel}>از تاریخ</div>

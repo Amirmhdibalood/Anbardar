@@ -8,6 +8,7 @@ export function normalizeAnswer(text: string): string {
   return text
     .normalize('NFC')
     .replace(/[\u064B-\u065F\u0670\u0640]/g, '') // اعراب و کشیده
+    // eslint-disable-next-line no-misleading-character-class -- نویسه‌های اتصال (ZWNJ/ZWJ) عمداً تکی جایگزین می‌شوند
     .replace(/[\u200C\u200D\u200E\u200F]/g, ' ') // نیم‌فاصله و نشانه‌های جهت
     .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))

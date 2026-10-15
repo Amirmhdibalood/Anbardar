@@ -5,7 +5,7 @@ import { Button } from '../components/Button'
 import { LockScreen } from '../components/LockScreen'
 import { Sheet } from '../components/Sheet'
 import { useSession } from '../hooks/useSession'
-import { setActor, setUsersOn } from '../services/session'
+import { getSessionSnapshot, setActor, setLoginOn, setUsersOn } from '../services/session'
 import { useToast } from '../components/Toast'
 import { getApp, getUsers } from '../services/appContext'
 import { hasChangesSinceBackup } from '../services/backupChanges'
@@ -42,14 +42,22 @@ export function RootShell() {
   const session = useSession()
   // حالت چندکاربره: در شروع بررسی، و قفل خودکار پس از ۵ دقیقه در پس‌زمینه
   useEffect(() => {
-    void getUsers()
-      .enabled()
-      .then(setUsersOn)
-      .catch(() => setUsersOn(false))
+    const users = getUsers()
+    void (async () => {
+      const on = await users.enabled()
+      // ورود خاموش: بدون صفحه ورود و به‌نام مالک
+      const required = on ? await users.loginRequired() : true
+      setLoginOn(required)
+      if (on && !required) {
+        const owner = await users.defaultOwner()
+        if (owner?.userId) setActor({ userId: owner.userId, name: owner.name, role: 'owner' })
+      }
+      setUsersOn(on)
+    })().catch(() => setUsersOn(false))
     let hiddenAt = 0
     const onVis = () => {
       if (document.hidden) hiddenAt = Date.now()
-      else if (hiddenAt && Date.now() - hiddenAt > 5 * 60_000) setActor(null)
+      else if (hiddenAt && Date.now() - hiddenAt > 5 * 60_000 && getSessionSnapshot().loginOn) setActor(null)
     }
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)

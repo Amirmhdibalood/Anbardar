@@ -7,6 +7,7 @@ import { EmptyState } from '../components/EmptyState'
 import { Field, TextInput } from '../components/Field'
 import { HelpTip } from '../components/HelpTip'
 import { PageHeader } from '../components/PageHeader'
+import { RecoverySetupSheet } from '../components/RecoverySetupSheet'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
@@ -23,6 +24,7 @@ import styles from './UsersPage.module.css'
 
 const roleOptions = ROLES.map((r) => ({ value: r, label: ROLE_LABELS[r] }))
 
+type Recovery = { userId: string; name: string; pin: string }
 type Editing = { mode: 'new' } | { mode: 'edit'; user: UserRow } | { mode: 'pin'; user: UserRow }
 
 /** کاربران و دسترسی‌ها (فقط مالک) */
@@ -35,6 +37,7 @@ export default function UsersPage() {
   const { data: users, reload, error } = useAsync(load)
   const [editing, setEditing] = useState<Editing | null>(null)
   const [disableAsk, setDisableAsk] = useState(false)
+  const [recovery, setRecovery] = useState<Recovery | null>(null)
 
   return (
     <>
@@ -101,7 +104,17 @@ export default function UsersPage() {
           </Button>
         </>
       )}
-      <UserSheet editing={editing} first={!usersOn} onClose={() => setEditing(null)} onDone={(msg) => (setEditing(null), toast.show(msg), reload())} />
+      <UserSheet editing={editing} first={!usersOn} onClose={() => setEditing(null)} onDone={(msg, rec) => (setEditing(null), toast.show(msg), reload(), rec && setRecovery(rec))} />
+      {recovery && (
+        <RecoverySetupSheet
+          open
+          afterPin
+          userId={recovery.userId}
+          userName={recovery.name}
+          knownPin={recovery.pin}
+          onClose={(saved) => (setRecovery(null), saved ? toast.show('سؤال‌های بازیابی ذخیره شد.') : toast.show('سؤال بازیابی تنظیم نشد؛ بعداً از «بیشتر» تنظیم کنید.'))}
+        />
+      )}
       <ConfirmSheet
         open={disableAsk}
         title="کاربران خاموش شوند؟"
@@ -123,7 +136,7 @@ export default function UsersPage() {
   )
 }
 
-function UserSheet({ editing, first, onClose, onDone }: { editing: Editing | null; first: boolean; onClose: () => void; onDone: (msg: string) => void }) {
+function UserSheet({ editing, first, onClose, onDone }: { editing: Editing | null; first: boolean; onClose: () => void; onDone: (msg: string, recovery?: Recovery) => void }) {
   const user = editing && editing.mode !== 'new' ? editing.user : null
   const [name, setName] = useState('')
   const [role, setRole] = useState<Role>('seller')
@@ -152,14 +165,14 @@ function UserSheet({ editing, first, onClose, onDone }: { editing: Editing | nul
     setBusy(true)
     try {
       if (editing.mode === 'new') {
-        await getUsers().create({ name, role, pin })
-        onDone(first ? 'کاربران روشن شد؛ شما «مالک» هستید.' : 'کاربر اضافه شد.')
+        const u = await getUsers().create({ name, role, pin })
+        onDone(first ? 'کاربران روشن شد؛ شما «مالک» هستید.' : 'کاربر اضافه شد.', { userId: u.id, name: u.name, pin })
       } else if (editing.mode === 'edit') {
         await getUsers().update(editing.user.id, { name, role })
         onDone('کاربر ویرایش شد.')
       } else {
         await getUsers().resetPin(editing.user.id, pin)
-        onDone('رمز تغییر کرد.')
+        onDone('رمز تغییر کرد.', { userId: editing.user.id, name: editing.user.name, pin })
       }
     } catch (e) {
       if (e instanceof ValidationError) setErrors(e.fieldErrors)
