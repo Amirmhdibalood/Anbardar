@@ -60,6 +60,8 @@ export interface ProductFilter extends ListOptions {
   nameContains?: string
   /** بخشی از کد (متن باید از قبل نرمال شده باشد)؛ با nameContains به‌صورت «یا» ترکیب می‌شود */
   codeContains?: string
+  /** تکه‌های جستجوی یکسان‌شده (utils/search)؛ همه باید در نام، کد یا نام گروه باشند */
+  tokens?: string[]
   limit?: number
   offset?: number
 }

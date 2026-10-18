@@ -1,3 +1,4 @@
+import { matchesTokens, searchTokens } from '../../utils/search'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Badge } from '../../components/Badge'
@@ -16,8 +17,7 @@ import { partyRoleLabel, type Party, type PartyRole } from '../../models/party'
 import { getCatalog, getMoney } from '../../services/appContext'
 import { compareFa } from '../../utils/collate'
 import { formatMoney } from '../../utils/money'
-import { toEnglishDigits, toPersianDigits } from '../../utils/persian'
-import { cleanText } from '../../validation/fields'
+import { toPersianDigits } from '../../utils/persian'
 import styles from '../ProductGroupsPage.module.css'
 import own from './PartiesPage.module.css'
 
@@ -50,11 +50,10 @@ export function PartiesPage({ initialRole = 'all' }: { initialRole?: RoleFilter 
 
   const filtered = useMemo(() => {
     if (!data) return []
-    const q = cleanText(search)
-    const digits = toEnglishDigits(q)
+    const tokens = searchTokens(search)
     return data.parties
       .filter((p) => (role === 'customer' ? p.isCustomer : role === 'supplier' ? p.isSupplier : role === 'balance' ? (data.balances.get(p.id) ?? 0) !== 0 : true))
-      .filter((p) => !q || p.name.includes(q) || (p.phone ?? '').includes(digits))
+      .filter((p) => matchesTokens(`${p.name} ${p.phone ?? ''}`, tokens))
       .sort((a, b) => Number(b.isActive) - Number(a.isActive) || Number(b.isSystem) - Number(a.isSystem) || compareFa(a.name, b.name))
   }, [data, search, role])
 

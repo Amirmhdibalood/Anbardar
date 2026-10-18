@@ -1,3 +1,4 @@
+import { searchTokens } from '../utils/search'
 import type { SqlExecutor } from '../database/types'
 import {
   FIFO_CONSUMING_TYPES,
@@ -15,7 +16,7 @@ import type { Product } from '../models/catalog'
 import type { IsoDateTime } from '../models/common'
 import { ValidationError } from '../utils/errors'
 import { compareFa } from '../utils/collate'
-import { cleanText, normalizeCode } from '../validation/fields'
+import { cleanText } from '../validation/fields'
 import { createRepositories } from '../repositories'
 import type { MovementFilter, StockFilter } from '../repositories'
 import { AppError } from '../utils/errors'
@@ -248,18 +249,21 @@ export function createStockService(db: SqlExecutor) {
     /** فهرست موجودی با وضعیت (کافی/کم‌موجودی/ناموجود) برای فقط کالاهای فعال */
     async overview(filter: StockOverviewFilter = {}): Promise<StockOverview> {
       const repos = createRepositories(db)
-      const name = cleanText(filter.search)
-      const code = normalizeCode(filter.search)
-      const items = await repos.products.listWithStock({
-        warehouseId: filter.warehouseId || undefined,
-        nameContains: name || undefined,
-        codeContains: code || undefined,
-      })
+      const items = await repos.products.listWithStock({ warehouseId: filter.warehouseId || undefined, tokens: searchTokens(filter.search) })
       const all: StockRow[] = [...items].sort((a, b) => compareFa(a.product.name, b.product.name)).map(({ product, quantity }) => ({ product, quantity, status: stockStatus(quantity, product.reorderPoint) }))
       const low = all.filter((r) => r.status === 'low').length
       const out = all.filter((r) => r.status === 'out').length
       const rows = filter.only === 'attention' ? all.filter((r) => r.status !== 'ok') : all
       return { rows, counts: { all: all.length, low, out, attention: low + out } }
+    },
+
+    /** جستجوی سریع کالا برای انتخاب‌گرها (فاکتور، انتقال): فیلتر داخل SQL، حداکثر `limit` ردیف مرتب */
+    async search(filter: { warehouseId?: string; search?: string; limit?: number } = {}): Promise<{ rows: { product: Product; quantity: Quantity }[]; total: number }> {
+      const repos = createRepositories(db)
+      const tokens = searchTokens(filter.search)
+      const items = await repos.products.listWithStock({ warehouseId: filter.warehouseId || undefined, tokens, limit: tokens.length ? 400 : undefined })
+      const rows = [...items].sort((a, b) => compareFa(a.product.name, b.product.name)).slice(0, filter.limit ?? 80)
+      return { rows, total: items.length }
     },
 
     /** جمع موجودی همه انبارها برای هر کالا (شناسه کالا ← هزارم واحد)، شامل کالاهای غیرفعال */

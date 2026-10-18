@@ -1,5 +1,5 @@
-import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
-import { formatMoneyTyping, formatQuantityTyping } from '../services/productForm'
+import { useId, useLayoutEffect, useRef, type ComponentPropsWithRef, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react'
+import { formatMoneyTyping, formatPercentTyping, formatQuantityTyping } from '../services/productForm'
 import { Icon } from './Icon'
 import styles from './Field.module.css'
 
@@ -41,7 +41,7 @@ interface InvalidProps {
   invalid?: boolean
 }
 
-export function TextInput({ invalid, ...rest }: InputHTMLAttributes<HTMLInputElement> & InvalidProps) {
+export function TextInput({ invalid, ...rest }: ComponentPropsWithRef<'input'> & InvalidProps) {
   return <input className={cls(invalid)} aria-invalid={invalid || undefined} {...rest} />
 }
 
@@ -56,18 +56,59 @@ interface TypedProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value'
   suffix?: string
 }
 
-/** فیلد مبلغ: فقط رقم، جداکننده هزارگان و ارقام فارسی هنگام تایپ */
-export function MoneyInput({ value, onChange, suffix, invalid, ...rest }: TypedProps) {
+export type NumberMode = 'money' | 'quantity' | 'percent'
+
+const FORMATTERS: Record<NumberMode, (text: string) => string> = {
+  money: formatMoneyTyping,
+  quantity: formatQuantityTyping,
+  percent: formatPercentTyping,
+}
+/** نویسه‌های «معنادار» (رقم و جداکننده اعشار) برای نگه داشتن جای مکان‌نما بعد از قالب‌بندی */
+const SIGNIFICANT = /[0-9۰-۹٠-٩٫./]/
+
+interface NumberProps extends TypedProps {
+  mode: NumberMode
+}
+
+/**
+ * فیلد عددی مشترک همه برنامه: ارقام فارسی، جداکننده هزارگان زنده هنگام تایپ، مکان‌نمای درست
+ * (حتی وقت ویرایش وسط عدد) و اعشار برای تعداد/درصد. پسوند (تومان/واحد) جای عدد را نمی‌گیرد.
+ */
+export function NumberInput({ mode, value, onChange, suffix, invalid, className, ...rest }: NumberProps) {
+  const ref = useRef<HTMLInputElement>(null)
+  const caret = useRef<number | null>(null)
+  const format = FORMATTERS[mode]
+  const shown = format(value)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (caret.current === null || !el || document.activeElement !== el) return
+    // مکان‌نما بعد از همان تعداد رقم معنادار قبلی
+    let count = caret.current
+    let pos = 0
+    while (pos < shown.length && count > 0) {
+      if (SIGNIFICANT.test(shown[pos]!)) count--
+      pos++
+    }
+    caret.current = null
+    el.setSelectionRange(pos, pos)
+  })
   return (
     <div className={styles.suffixWrap}>
       <input
-        className={`${cls(invalid)} ${styles.numeric}`}
-        inputMode="numeric"
+        ref={ref}
+        className={`${cls(invalid)} ${styles.numeric} ${suffix ? styles.withSuffix : ''} ${className ?? ''}`}
+        inputMode={mode === 'money' ? 'numeric' : 'decimal'}
         autoComplete="off"
         dir="ltr"
-        value={value}
-        onChange={(e) => onChange(formatMoneyTyping(e.target.value))}
+        value={shown}
+        onChange={(e) => {
+          const raw = e.target.value
+          const at = e.target.selectionStart ?? raw.length
+          caret.current = [...raw.slice(0, at)].filter((c) => SIGNIFICANT.test(c)).length
+          onChange(format(raw))
+        }}
         aria-invalid={invalid || undefined}
+        data-number={mode}
         {...rest}
       />
       {suffix && <span className={styles.suffix}>{suffix}</span>}
@@ -75,23 +116,19 @@ export function MoneyInput({ value, onChange, suffix, invalid, ...rest }: TypedP
   )
 }
 
-/** فیلد تعداد: ارقام فارسی و «٫» برای اعشار */
-export function QuantityInput({ value, onChange, suffix, invalid, ...rest }: TypedProps) {
-  return (
-    <div className={styles.suffixWrap}>
-      <input
-        className={`${cls(invalid)} ${styles.numeric}`}
-        inputMode="decimal"
-        autoComplete="off"
-        dir="ltr"
-        value={value}
-        onChange={(e) => onChange(formatQuantityTyping(e.target.value))}
-        aria-invalid={invalid || undefined}
-        {...rest}
-      />
-      {suffix && <span className={styles.suffix}>{suffix}</span>}
-    </div>
-  )
+/** فیلد مبلغ (تومان، عدد صحیح) */
+export function MoneyInput(props: TypedProps) {
+  return <NumberInput mode="money" {...props} />
+}
+
+/** فیلد تعداد: ارقام فارسی، هزارگان و «٫» برای اعشار */
+export function QuantityInput(props: TypedProps) {
+  return <NumberInput mode="quantity" {...props} />
+}
+
+/** فیلد درصد: ارقام فارسی و «٫» برای اعشار */
+export function PercentInput(props: TypedProps) {
+  return <NumberInput mode="percent" {...props} />
 }
 
 interface SwitchProps {

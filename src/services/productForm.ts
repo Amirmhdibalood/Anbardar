@@ -50,12 +50,21 @@ export function formatMoneyTyping(text: string): string {
   return digits === '' ? '' : formatInteger(Number(digits))
 }
 
-/** در حین تایپ تعداد: ارقام فارسی و «٫» به‌عنوان اعشار */
+/** در حین تایپ تعداد: ارقام فارسی، جداکننده هزارگان روی بخش صحیح و «٫» به‌عنوان اعشار («,» هزارگان است، نه اعشار) */
 export function formatQuantityTyping(text: string): string {
-  const cleaned = toPersianDigits(text.replace(/[.,/]/g, '٫').replace(/[^0-9۰-۹٠-٩٫]/g, ''))
-  const [first = '', ...rest] = cleaned.split('٫')
+  const cleaned = toEnglishDigits(text).replace(/[,\u066C\u060C\s]/g, '').replace(/[./\u066B]/g, '.').replace(/[^0-9.]/g, '')
+  const [first = '', ...rest] = cleaned.split('.')
+  const whole = first.replace(/^0+(?=\d)/, '').slice(0, 12)
+  const grouped = whole === '' ? '' : whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
   // فقط اولین جداکننده اعشار نگه داشته می‌شود
-  return rest.length === 0 ? first : `${first}٫${rest.join('')}`
+  return toPersianDigits(rest.length === 0 ? grouped : `${grouped || '0'}٫${rest.join('')}`)
+}
+
+/** در حین تایپ درصد: ارقام فارسی و «٫» برای اعشار («,» و «.» هم اعشار حساب می‌شوند) */
+export function formatPercentTyping(text: string): string {
+  const cleaned = toEnglishDigits(text).replace(/[.,/\u066B]/g, '.').replace(/[^0-9.]/g, '')
+  const [first = '', ...rest] = cleaned.split('.')
+  return toPersianDigits(rest.length === 0 ? first.slice(0, 6) : `${first.slice(0, 6) || '0'}٫${rest.join('').slice(0, 2)}`)
 }
 
 function parsePrice(text: string, label: string): { value: number } | { error: string } {

@@ -57,7 +57,13 @@
 .numeric {
   text-align: right;
   direction: ltr;
-  padding-inline-end: 62px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* جای پسوند (تومان/واحد) فقط وقتی پسوند هست؛ پسوند در صفحه راست‌به‌چپ سمت چپ فیلد است */
+.withSuffix {
+  padding-left: 64px;
 }
 
 .numeric::placeholder {

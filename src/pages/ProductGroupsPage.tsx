@@ -4,7 +4,7 @@ import { Button, IconButton } from '../components/Button'
 import { Card } from '../components/Card'
 import { ConfirmSheet } from '../components/ConfirmSheet'
 import { EmptyState } from '../components/EmptyState'
-import { Field, TextInput } from '../components/Field'
+import { Field, PercentInput, TextInput } from '../components/Field'
 import { Icon } from '../components/Icon'
 import { PageHeader } from '../components/PageHeader'
 import { Sheet } from '../components/Sheet'
@@ -163,7 +163,7 @@ function GroupForm({ editing, count, onClose, onSaved, onAskConfirm }: Omit<Shee
     try {
       setMarkupError(null)
       let markupBp: number | null = null
-      const raw = markup.trim().replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString()).replace(',', '.')
+      const raw = markup.trim().replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString()).replace(/[,٫]/, '.')
       if (raw !== '') {
         if (!/^\d+(\.\d{1,2})?$/.test(raw)) {
           setMarkupError('درصد را درست وارد کنید.')
@@ -210,7 +210,7 @@ function GroupForm({ editing, count, onClose, onSaved, onAskConfirm }: Omit<Shee
           <TextInput id="group-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="مثلاً لوازم جانبی" invalid={!!error} autoComplete="off" maxLength={120} />
         </Field>
         <Field label="درصد سود پیشنهادی این گروه" htmlFor="group-markup" error={markupError ?? undefined} hint="خالی = از درصد سراسری تنظیمات استفاده شود. فقط وقتی پیشنهاد قیمت «خرید + درصد» است به‌کار می‌آید.">
-          <TextInput id="group-markup" value={markup} onChange={(e) => setMarkup(e.target.value)} inputMode="decimal" placeholder="اختیاری" autoComplete="off" />
+          <PercentInput id="group-markup" value={markup} onChange={setMarkup} placeholder="اختیاری" suffix="٪" />
         </Field>
         <Button type="submit" block loading={saving}>
           {group ? 'ذخیره' : 'افزودن گروه'}

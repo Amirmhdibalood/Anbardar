@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -34,9 +35,7 @@ interface Loaded {
 }
 
 /** ثبت کالای جدید و ویرایش کالا در یک صفحه (مسیر /products/new و /products/:id) */
-export default function ProductFormPage() {
-  const { id } = useParams()
-  const loader = useCallback(async (): Promise<Loaded> => {
+async function loadForm(id?: string): Promise<Loaded> {
     const catalog = getCatalog()
     const [groups, units, product] = await Promise.all([
       catalog.groups.list({ includeInactive: true }),
@@ -47,7 +46,12 @@ export default function ProductFormPage() {
     const used = product ? await catalog.products.isUsed(product.id) : false
     const defaultGroupId = (await getApp().repos.settings.getValue(SETTING_KEYS.defaultProductGroupId)) ?? ''
     return { product, used, groups, units, defaultGroupId }
-  }, [id])
+}
+
+export default function ProductFormPage() {
+  const { id } = useParams()
+  const [params] = useSearchParams()
+  const loader = useCallback(() => loadForm(id), [id])
   const { data, error, loading, reload } = useAsync(loader)
   const goBack = useGoBack('/products')
 
@@ -61,10 +65,37 @@ export default function ProductFormPage() {
   }
   if (loading || !data) return <PageHeader title={id ? 'ویرایش کالا' : 'کالای جدید'} onBack={goBack} />
   // با تغییر کالا فرم از نو ساخته می‌شود
-  return <ProductForm key={id ?? 'new'} data={data} onReload={reload} goBack={goBack} />
+  return <ProductForm key={id ?? 'new'} data={data} onReload={reload} goBack={goBack} initialName={id ? undefined : (params.get('name') ?? undefined)} />
 }
 
-function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () => void; goBack: () => void }) {
+/**
+ * «تعریف کالای جدید» از داخل فاکتور خرید: همان فرم کالا روی صفحه فعلی (فاکتور باز و دست‌نخورده می‌ماند)
+ * و بعد از ثبت، کالای تازه به فاکتور برمی‌گردد. role=dialog تا دکمه بازگشت اندروید اول همین را ببندد.
+ */
+export function ProductCreateOverlay({ initialName, onClose, onCreated }: { initialName?: string; onClose: () => void; onCreated: (product: Product) => void }) {
+  const loader = useCallback(() => loadForm(), [])
+  const { data } = useAsync(loader)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      const dialogs = document.querySelectorAll('[role="dialog"]')
+      if (dialogs[dialogs.length - 1] !== ref.current) return
+      e.stopPropagation()
+      ref.current?.querySelector<HTMLElement>('[data-back-button]')?.click()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+  return createPortal(
+    <div ref={ref} className={styles.overlay} role="dialog" aria-modal="true" aria-label="کالای جدید" data-testid="product-overlay">
+      {data ? <ProductForm data={data} onReload={() => undefined} goBack={onClose} initialName={initialName} onCreated={onCreated} /> : null}
+    </div>,
+    document.body,
+  )
+}
+
+function ProductForm({ data, onReload, goBack, initialName, onCreated }: { data: Loaded; onReload: () => void; goBack: () => void; initialName?: string; onCreated?: (product: Product) => void }) {
   const { product, used, units, groups } = data
   const editing = product !== null
   const navigate = useNavigate()
@@ -75,7 +106,7 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
   const activeGroups = localGroups.filter((g) => g.isActive || g.id === product?.groupId)
   const initialGroup = product?.groupId ?? (activeGroups.find((g) => g.id === data.defaultGroupId)?.id ?? activeGroups[0]?.id ?? '')
   const [values, setValues] = useState<ProductFormValues>(() =>
-    product ? productToForm(product) : { ...emptyProductForm({ groupId: initialGroup, unitId: DEFAULT_UNIT_ID }), subUnits: [] },
+    product ? productToForm(product) : { ...emptyProductForm({ groupId: initialGroup, unitId: DEFAULT_UNIT_ID }), subUnits: [], name: initialName?.trim() ?? '' },
   )
   const [initialValues] = useState(values)
   const dirty = JSON.stringify(values) !== JSON.stringify(initialValues)
@@ -121,7 +152,8 @@ function ProductForm({ data, onReload, goBack }: { data: Loaded; onReload: () =>
       const catalog = getCatalog()
       const saved = product ? await catalog.products.update(product.id, parsed.input) : await catalog.products.create(parsed.input)
       toast.show(product ? 'تغییرات کالا ذخیره شد.' : `کالای «${saved.name}» ثبت شد.`)
-      goBack()
+      if (!product && onCreated) onCreated(saved)
+      else goBack()
     } catch (e) {
       if (e instanceof ValidationError) showErrors({ ...e.fieldErrors })
       else {

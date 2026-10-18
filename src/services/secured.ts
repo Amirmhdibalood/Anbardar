@@ -170,7 +170,7 @@ export const REPORT_READS = ['stockAlerts']
 export const STOCK_RULES: Record<string, Rule> = {
   adjust: { perm: 'stock.adjust', dates: inputDate('occurredAt'), audit: (r) => ({ action: 'stock.adjust', entityType: 'stock_movement', entityId: r.id, summary: `اصلاح موجودی (${r.quantityDelta > 0 ? 'افزایش' : 'کاهش'})` }) },
 }
-export const STOCK_READS = ['overview', 'totals', 'levelsForProduct', 'recentMovements', 'suggestedUnitCost']
+export const STOCK_READS = ['overview', 'search', 'totals', 'levelsForProduct', 'recentMovements', 'suggestedUnitCost']
 
 const crud = (entity: string, label: string, perm: Permission): Record<string, Rule> => ({
   [`${entity}.create`]: { perm, audit: (r) => ({ action: `${entity}.create`, entityType: entity, entityId: r.id, summary: `${label} «${r.name}» اضافه شد` }) },

@@ -1,3 +1,4 @@
+import { searchTokens } from '../utils/search'
 import type { ProductUnitInput } from '../models/catalog'
 import type { SqlExecutor } from '../database/types'
 import type { ProductInput } from '../models/catalog'
@@ -7,7 +8,6 @@ import type { Unit, UnitInput } from '../models/catalog'
 import { DEFAULT_UNIT_ID } from '../models/units'
 import { sortByName, compareFa } from '../utils/collate'
 import { AppError, ValidationError } from '../utils/errors'
-import { cleanText, normalizeCode } from '../validation/fields'
 import { formatInteger } from '../utils/persian'
 import { isWholeQuantity } from '../utils/quantity'
 import { validateParty, validateProduct, validateProductGroup, validateUnit, validateWarehouse } from '../validation/entities'
@@ -97,13 +97,11 @@ export function createCatalogService(db: SqlExecutor) {
     suppliers: crudService(repos.suppliers, (i) => validateParty(i, 'تأمین‌کننده')),
 
     products: {
-      /** فهرست کالاها؛ search هم نام و هم کد را می‌گردد (ارقام فارسی و «ي/ك» عربی نرمال می‌شوند) */
+      /** فهرست کالاها؛ search زیررشته نام، کد یا گروه را می‌گردد (utils/search.normalizeSearch) */
       list: async (filter: ProductSearch = {}) => {
         const { search, limit, offset, ...rest } = filter
-        const name = cleanText(search)
-        const code = normalizeCode(search)
-        // ترتیب فارسی در SQLite ممکن نیست؛ پس همه نتایج مرتب می‌شوند و صفحه‌بندی بعد از آن اعمال می‌شود
-        const all = sortByName(await repos.products.list({ ...rest, nameContains: name || undefined, codeContains: code || undefined }))
+        // جستجوی یکسان‌شده در نام، کد و گروه (داخل SQL)؛ ترتیب فارسی در SQLite ممکن نیست، پس مرتب‌سازی بعد از فیلتر
+        const all = sortByName(await repos.products.list({ ...rest, tokens: searchTokens(search) }))
         return limit === undefined ? all : all.slice(offset ?? 0, (offset ?? 0) + limit)
       },
       getById: (id: string) => repos.products.getById(id),

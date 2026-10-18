@@ -1,3 +1,4 @@
+import { sqlNormalized } from '../../utils/search'
 import type { Product, ProductUnit, ProductUnitInput, ProductGroup, ProductGroupInput, ProductInput, Unit, UnitInput, Warehouse, WarehouseInput } from '../../models/catalog'
 import type { Party, PartyInput, PartyRole } from '../../models/party'
 import type { SqlExecutor, SqlRow, SqlValue } from '../../database/types'
@@ -245,6 +246,10 @@ export class SqliteProductRepository extends EntityRepository<Product, ProductWr
       params.push(`%${escapeLike(filter.codeContains.trim())}%`)
     }
     if (likes.length) where.push(`(${likes.join(' OR ')})`)
+    for (const t of filter.tokens ?? []) {
+      where.push(`instr(${PRODUCT_HAYSTACK}, ?) > 0`)
+      params.push(t)
+    }
     return { where: where.length ? 'WHERE ' + where.join(' AND ') : '', params }
   }
 
@@ -265,11 +270,15 @@ export class SqliteProductRepository extends EntityRepository<Product, ProductWr
     const warehouse = filter.warehouseId ? ' AND s.warehouse_id = ?' : ''
     const sql = `SELECT p.*, u.name AS unit_name, u.allows_fraction AS unit_allows_fraction,
   COALESCE((SELECT SUM(s.quantity) FROM warehouse_stock s WHERE s.product_id = p.id${warehouse}), 0) AS stock_qty, ${SUB_UNITS}
-FROM products p JOIN units u ON u.id = p.unit_id ${where} ORDER BY p.name, p.code`
+FROM products p JOIN units u ON u.id = p.unit_id ${where} ORDER BY p.name, p.code${filter.limit !== undefined ? ' LIMIT ? OFFSET ?' : ''}`
+    if (filter.limit !== undefined) params.push(filter.limit, filter.offset ?? 0)
     const rows = await this.db.all(sql, filter.warehouseId ? [filter.warehouseId, ...params] : params)
     return rows.map((r) => ({ product: this.fromRow(r), quantity: num(r, 'stock_qty') }))
   }
 }
+
+/** متن قابل جستجوی کالا: نام + کد + نام گروه، یکسان‌شده (بدون فاصله، ی/ک فارسی، ارقام لاتین) */
+const PRODUCT_HAYSTACK = sqlNormalized("p.name || char(31) || p.code || char(31) || COALESCE((SELECT g.name FROM product_groups g WHERE g.id = p.group_id), '')")
 
 const SUB_UNITS = `(SELECT group_concat(pu.id || char(31) || pu.unit_id || char(31) || uu.name || char(31) || uu.allows_fraction || char(31) || pu.factor || char(31) || pu.is_active, char(30))
    FROM product_units pu JOIN units uu ON uu.id = pu.unit_id WHERE pu.product_id = p.id) AS sub_units`

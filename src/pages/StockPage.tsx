@@ -12,6 +12,9 @@ import { ProductTabs } from '../components/ProductTabs'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
 import { useAsync } from '../hooks/useAsync'
+import { useCan } from '../hooks/useSession'
+import { ProductPicker } from '../components/invoice/ProductPicker'
+import { ProductCreateOverlay } from './ProductFormPage'
 import type { Product, Warehouse } from '../models/catalog'
 import { movementLabel, type StockLevel, type StockMovement, type StockStatus } from '../models/stock'
 import { getCatalog, getStock } from '../services/appContext'
@@ -32,7 +35,12 @@ interface Loaded {
   overview: StockOverview
 }
 
-type View = { kind: 'detail'; product: Product } | { kind: 'adjust'; product: Product; warehouseId: string } | null
+type View =
+  | { kind: 'detail'; product: Product }
+  | { kind: 'adjust'; product: Product; warehouseId: string; initialKind?: AdjustKind; standalone?: boolean }
+  | { kind: 'pick' }
+  | { kind: 'create'; name: string }
+  | null
 
 const STATUS_LABEL: Record<StockStatus, string> = {
   ok: 'کافی',
@@ -49,6 +57,8 @@ export default function StockPage() {
   const attentionOnly = params.get('f') === 'low'
   const [text, setText] = useState(query)
   const [view, setView] = useState<View>(null)
+  const canAdjust = useCan('stock.adjust')
+  const canCreateProduct = useCan('products.manage')
 
   const update = useCallback(
     (changes: Record<string, string | null>) =>
@@ -69,7 +79,7 @@ export default function StockPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (text.trim() !== query) update({ q: text.trim() || null })
-    }, 250)
+    }, 150)
     return () => window.clearTimeout(timer)
   }, [text, query, update])
 
@@ -85,6 +95,9 @@ export default function StockPage() {
     return { warehouses, overview }
   }, [warehouseId, query, attentionOnly])
   const { data, error, loading, reload } = useAsync(load)
+  const defaultWarehouse = () => warehouseId || (data?.warehouses.find((w) => w.isActive)?.id ?? '')
+  // «موجودی اولیه»: انتخاب کالا (یا تعریف کالای جدید) ← برگه اصلاح با نوع «موجودی اولیه»
+  const startOpening = (product: Product) => setView({ kind: 'adjust', product, warehouseId: defaultWarehouse(), initialKind: 'opening', standalone: true })
 
   const filtering = query !== '' || attentionOnly
 
@@ -125,6 +138,11 @@ export default function StockPage() {
               </label>
             </div>
 
+            {canAdjust && (
+              <Button variant="secondary" icon="plus" block onClick={() => setView({ kind: 'pick' })} data-testid="opening-stock">
+                ثبت موجودی اولیه کالا
+              </Button>
+            )}
             <div className={styles.chips} role="group" aria-label="فیلتر وضعیت موجودی">
               <Chip label="همه" selected={!attentionOnly} onClick={() => update({ f: null })} />
               <Chip label={`فقط کم‌موجودی (${formatInteger(data.overview.counts.attention)})`} selected={attentionOnly} onClick={() => update({ f: 'low' })} />
@@ -142,15 +160,22 @@ export default function StockPage() {
                   title="کالایی پیدا نشد"
                   description="عبارت دیگری امتحان کنید یا فیلتر را بردارید."
                   action={
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setText('')
-                        update({ q: null, f: null })
-                      }}
-                    >
-                      پاک کردن جستجو و فیلتر
-                    </Button>
+                    <div className={styles.emptyActions}>
+                      {query && canCreateProduct && canAdjust && (
+                        <Button icon="plus" onClick={() => setView({ kind: 'create', name: query })} data-testid="stock-create-product">
+                          {`تعریف کالای جدید «${query}»`}
+                        </Button>
+                      )}
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setText('')
+                          update({ q: null, f: null })
+                        }}
+                      >
+                        پاک کردن جستجو و فیلتر
+                      </Button>
+                    </div>
                   }
                 />
               )
@@ -182,10 +207,30 @@ export default function StockPage() {
           product={view.product}
           warehouses={data?.warehouses ?? []}
           initialWarehouseId={view.warehouseId}
-          onBack={() => setView({ kind: 'detail', product: view.product })}
+          initialKind={view.initialKind}
+          onBack={() => setView(view.standalone ? null : { kind: 'detail', product: view.product })}
           onSaved={() => {
             reload()
             setView({ kind: 'detail', product: view.product })
+          }}
+        />
+      )}
+      {view?.kind === 'pick' && (
+        <ProductPicker
+          warehouseId={defaultWarehouse()}
+          exclude={new Set()}
+          onPick={(p) => startOpening(p)}
+          onClose={() => setView(null)}
+          onCreate={canCreateProduct ? (name) => setView({ kind: 'create', name }) : undefined}
+        />
+      )}
+      {view?.kind === 'create' && (
+        <ProductCreateOverlay
+          initialName={view.name}
+          onClose={() => setView(null)}
+          onCreated={(p) => {
+            reload()
+            startOpening(p)
           }}
         />
       )}
@@ -313,18 +358,20 @@ function AdjustSheet({
   product,
   warehouses,
   initialWarehouseId,
+  initialKind,
   onBack,
   onSaved,
 }: {
   product: Product
   warehouses: Warehouse[]
   initialWarehouseId: string
+  initialKind?: AdjustKind
   onBack: () => void
   onSaved: () => void
 }) {
   const toast = useToast()
   const [warehouseId, setWarehouseId] = useState(initialWarehouseId)
-  const [kind, setKind] = useState<AdjustKind>('count')
+  const [kind, setKind] = useState<AdjustKind>(initialKind ?? 'count')
   const [value, setValue] = useState('')
   const [unitCostText, setUnitCostText] = useState<string | null>(null)
   // موجودی اولیه: واحد ورود (واحد فرعی) و «قیمت واحد / مبلغ کل»

@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
+import { matchesTokens, searchTokens } from '../utils/search'
 import { cleanText } from '../validation/fields'
-import { toEnglishDigits } from '../utils/persian'
 import { Icon } from './Icon'
 import { Sheet } from './Sheet'
 import field from './Field.module.css'
@@ -35,7 +35,6 @@ interface Props<T extends string> {
   searchThreshold?: number
 }
 
-const norm = (s: string) => toEnglishDigits(cleanText(s)).toLowerCase()
 
 /**
  * انتخاب‌گر سفارشی به‌جای <select> بومی: دکمه‌ای هم‌شکل فیلدها که برگه پایین‌صفحه با جستجو،
@@ -55,8 +54,8 @@ export function Picker<T extends string>({ id, title, value, options, onChange, 
   const searchable = options.length > searchThreshold
 
   const visible = useMemo(() => {
-    const q = norm(query)
-    return q ? options.filter((o) => norm(o.label).includes(q) || norm(o.description ?? '').includes(q)) : options
+    const tokens = searchTokens(query)
+    return tokens.length ? options.filter((o) => matchesTokens(`${o.label} ${o.description ?? ''}`, tokens)) : options
   }, [options, query])
 
   const openSheet = () => {

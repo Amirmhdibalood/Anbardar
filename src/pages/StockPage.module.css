@@ -331,3 +331,4 @@
 .moveCost {
   color: var(--muted);
 }
+.emptyActions { display: flex; flex-direction: column; gap: 8px; align-items: stretch; width: 100%; max-width: 360px; }

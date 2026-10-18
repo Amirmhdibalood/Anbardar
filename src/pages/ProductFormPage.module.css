@@ -115,3 +115,16 @@
   font-size: 13px;
   margin: 0;
 }
+
+/* فرم کالا روی فاکتور (همان فاصله‌های .content چیدمان اصلی) */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--bg);
+  padding: calc(14px + var(--safe-top)) max(18px, calc((100% - 760px) / 2)) calc(24px + var(--safe-bottom) + var(--kb-inset, 0px));
+  scroll-padding-top: calc(76px + var(--safe-top));
+  scroll-padding-bottom: 120px;
+}

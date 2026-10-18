@@ -1,5 +1,5 @@
 import { Card } from '../components/Card'
-import { Field, TextInput } from '../components/Field'
+import { Field, PercentInput } from '../components/Field'
 import { Picker } from '../components/Picker'
 import { PageHeader } from '../components/PageHeader'
 import { useSettings } from '../hooks/useSettings'
@@ -18,7 +18,7 @@ export default function SettingsPage() {
 
   const saveMarkup = (text: string) => {
     setMarkupText(text)
-    const raw = text.trim().replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString()).replace(',', '.')
+    const raw = text.trim().replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString()).replace(/[,٫]/, '.')
     if (raw === '') {
       setMarkupBp(0)
       setMarkupError(null)
@@ -61,7 +61,7 @@ export default function SettingsPage() {
         </div>
         {settings.salePriceMode === 'markup' && (
           <Field label="درصد سود سراسری" htmlFor="markup-bp" error={markupError ?? undefined} hint="اگر برای گروهی درصد جدا بگذارید، همان اولویت دارد.">
-            <TextInput id="markup-bp" value={markupText} onChange={(e) => saveMarkup(e.target.value)} inputMode="decimal" placeholder="۲۰" autoComplete="off" />
+            <PercentInput id="markup-bp" value={markupText} onChange={saveMarkup} placeholder="۲۰" suffix="٪" />
           </Field>
         )}
       </Card>

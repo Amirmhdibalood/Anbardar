@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState, type ReactNode, useRef } from 'react'
 import type { Product, Warehouse } from '../../models/catalog'
 import type { Customer, PartyInput, Supplier } from '../../models/party'
 import { useAsync } from '../../hooks/useAsync'
+import { useCan } from '../../hooks/useSession'
+import { ProductCreateOverlay } from '../../pages/ProductFormPage'
 import { getStock } from '../../services/appContext'
 import { draftToInput, draftTotals, isFutureDay, lineError, lineUnit, loadPriceMode, mapServiceErrors, savePriceMode, stepQuantity, type ChargeDraft, type DraftInput, type InvoiceDraft, type LineDraft } from '../../services/invoiceForm'
 import type { LandedMethod, PriceMode } from '../../models/invoice'
@@ -80,6 +82,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const savingRef = useRef(false)
   const requestId = useRef(newRequestId()).current
   const [picker, setPicker] = useState(false)
+  // «تعریف کالای جدید» از داخل فاکتور خرید (فاکتور سر جایش می‌ماند)
+  const [newProduct, setNewProduct] = useState<string | null>(null)
+  const canCreateProduct = useCan('products.manage') && kind === 'purchase'
   const [newParty, setNewParty] = useState(false)
   const [confirmLeave, setConfirmLeave] = useState(false)
   const [openDiscounts, setOpenDiscounts] = useState<ReadonlySet<string>>(new Set())
@@ -462,7 +467,17 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         </div>
       </form>
 
-      {picker && <ProductPicker warehouseId={draft.warehouseId} exclude={exclude} requireStock={props.checkStock} onPick={(p) => void addProduct(p)} onClose={() => setPicker(false)} />}
+      {picker && (
+        <ProductPicker
+          warehouseId={draft.warehouseId}
+          exclude={exclude}
+          requireStock={props.checkStock}
+          onPick={(p) => void addProduct(p)}
+          onClose={() => setPicker(false)}
+          onCreate={canCreateProduct ? (name) => (setPicker(false), setNewProduct(name)) : undefined}
+        />
+      )}
+      {newProduct !== null && <ProductCreateOverlay initialName={newProduct} onClose={() => setNewProduct(null)} onCreated={(p) => (setNewProduct(null), void addProduct(p))} />}
       {newParty && (
         <PartySheet
           label={partyLabel}

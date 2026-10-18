@@ -1,3 +1,4 @@
+import { useCan } from '../hooks/useSession'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../components/Badge'
@@ -35,6 +36,7 @@ export default function ProductsPage() {
   const showInactive = params.get('i') === '1'
   const [text, setText] = useState(query)
   const money = useMoney()
+  const canCreate = useCan('products.manage')
 
   // فیلترها در آدرس نگه داشته می‌شوند تا بعد از ویرایش یک کالا و بازگشت، همان نتیجه دیده شود
   const update = useCallback(
@@ -56,7 +58,7 @@ export default function ProductsPage() {
   useEffect(() => {
     const timer = window.setTimeout(() => {
       if (text.trim() !== query) update({ q: text.trim() || null })
-    }, 250)
+    }, 150)
     return () => window.clearTimeout(timer)
   }, [text, query, update])
 
@@ -151,7 +153,18 @@ export default function ProductsPage() {
                 icon="search"
                 title="کالایی پیدا نشد"
                 description={filtering ? 'برای این جستجو یا گروه، کالایی ثبت نشده است. عبارت دیگری امتحان کنید یا فیلتر را بردارید.' : 'همه کالاها غیرفعال شده‌اند. برای دیدن آن‌ها «نمایش غیرفعال‌ها» را بزنید.'}
-                action={filtering ? <Button variant="secondary" onClick={clearFilters}>پاک کردن جستجو و فیلتر</Button> : undefined}
+                action={
+                  filtering ? (
+                    <div className={styles.emptyActions}>
+                      {query && canCreate && (
+                        <ButtonLink icon="plus" to={`/products/new?name=${encodeURIComponent(query)}`}>
+                          {`تعریف کالای جدید «${query}»`}
+                        </ButtonLink>
+                      )}
+                      <Button variant="secondary" onClick={clearFilters}>پاک کردن جستجو و فیلتر</Button>
+                    </div>
+                  ) : undefined
+                }
               />
             ) : (
               <ul className={styles.list}>

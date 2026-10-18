@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Card } from '../components/Card'
-import { Field, MoneyInput, TextInput } from '../components/Field'
+import { Field, MoneyInput, PercentInput } from '../components/Field'
 import { PageHeader } from '../components/PageHeader'
 import { useGoBack } from '../hooks/useGoBack'
 import { MAX_MARKUP_BP } from '../models/settings'
@@ -10,7 +10,7 @@ import { formatInteger, parseIntegerInput, toPersianDigits } from '../utils/pers
 import styles from './SettingsPage.module.css'
 
 function parseBp(text: string): { ok: true; bp: number } | { ok: false; error: string } {
-  const raw = text.trim().replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString()).replace(',', '.')
+  const raw = text.trim().replace(/[۰-۹]/g, (d) => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString()).replace(/[,٫]/, '.')
   if (raw === '' || !/^\d+(\.\d{1,2})?$/.test(raw)) return { ok: false, error: 'درصد سود را درست وارد کنید (مثلاً ۱۳ یا ۱۲٫۵).' }
   const bp = Math.round(Number(raw) * 100)
   if (bp < 0 || bp > MAX_MARKUP_BP) return { ok: false, error: 'درصد سود باید بین ۰ تا ۱۰۰۰ باشد.' }
@@ -53,7 +53,7 @@ export default function PriceCalculatorPage() {
           <MoneyInput id="pc-extra" value={extra} onChange={setExtra} placeholder="۰" suffix="تومان" />
         </Field>
         <Field label="درصد سود" htmlFor="pc-pct">
-          <TextInput id="pc-pct" value={percent} onChange={(e) => setPercent(e.target.value)} inputMode="decimal" placeholder="۱۳" autoComplete="off" />
+          <PercentInput id="pc-pct" value={percent} onChange={setPercent} placeholder="۱۳" suffix="٪" />
         </Field>
         {error && <p className={styles.note} role="alert">{error}</p>}
       </Card>
