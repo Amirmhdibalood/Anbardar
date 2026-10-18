@@ -169,7 +169,7 @@ async function run(theme) {
   await settle(450)
   await clickText('اصلاح')
   await settle(300)
-  await clickText('موجودی اولیه', 'button')
+  await dialogClick('موجودی اولیه')
   await pick(page, '#adj-unit', 'کارتن')
   await clickRadio('[role="dialog"]', 'مبلغ کل')
   await fill('#adj-qty', '4')

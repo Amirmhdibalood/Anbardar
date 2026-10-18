@@ -278,3 +278,10 @@ Design note: `docs/stage2-units-landed-cheques.md`. Migration 007 (snapshot take
   - On a debtor's account page there is only «دریافت از او» (direction locked); on a creditor's, only «پرداخت به او».
   - Forms opened from an invoice are locked the same way.
   - The general receipts/payments form keeps both options, but its default comes from the sign of the party's balance.
+
+## v1.5.1 (versionCode 12): number inputs, define-product-from-picker, live search
+- One shared `NumberInput` (Field.tsx) with MoneyInput / QuantityInput / PercentInput wrappers: live 3-digit grouping, Persian digits, caret preserved by counting significant chars, suffix padding so nothing is clipped. Used by every money/quantity/percent field (only PINs and cheque numbers stay plain text).
+- Landed-cost row: amount field gets the wide column; at ≤420px the title takes a full row.
+- «تعریف کالای جدید» from the purchase product picker and from the new «ثبت موجودی اولیه کالا» entry on the stock page (needs products.manage; opening stock also needs stock.adjust). Opens a full-screen overlay prefilled with the typed text; back keeps the invoice; saving adds the line / opens the opening-stock sheet.
+- Live search (150ms debounce) in product picker, products list, stock list, party pickers and parties page; normalized substring match on name, code and group (ي/ی، ك/ک، digits, ZWNJ, spaces, case). Product search runs in SQL (`instr` over a normalized haystack), tested with 2,100 products.
+- Tests: tests/search.test.ts, scripts/e2e-v151.mjs (360×780, both themes), added to walkthrough SUITES.

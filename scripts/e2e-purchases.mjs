@@ -270,7 +270,7 @@ async function run(theme) {
   await go('#/stock')
   await openCard('هدفون')
   await clickText('اصلاح')
-  await clickText('موجودی اولیه', 'button')
+  await dialogClick('موجودی اولیه')
   check(t('opening unit cost prefilled from last active purchase'), (await page.$eval('#adj-cost', (e) => e.value)) === '۱,۰۰۰,۰۰۰')
   await page.keyboard.press('Escape')
   await settle(200)

@@ -109,3 +109,8 @@ Size check: npx vite preview --port 4173 & node scripts/sizes-check.mjs
 - e2e: `scripts/e2e-stage5.mjs` (wait ~900ms before `page.reload()`, because sql.js persistence is debounced by 200ms). stage4 e2e skips the new recovery sheet.
 - Money form: `?lock=1&party=` hides the direction control and locks the party (`money-direction-locked`, `data-kind`). It is used from the PartyLedger buttons (filtered by balance sign) and from InvoicePaymentCard.
 - The general form calls `balanceOf` when a party is picked to choose the default direction (`money-direction-hint`), until the user changes the direction manually.
+
+## v1.5.1: number inputs + live search
+- Any new numeric field must use MoneyInput/QuantityInput/PercentInput from components/Field.tsx — never a raw input.
+- Search: use `searchTokens`/`matchesTokens` (utils/search.ts) for in-memory lists, and the `tokens` filter (SQL, `sqlNormalized`) for products. Stored names are already normalized by cleanText (ي→ی), so e2e assertions must compare against the normalized name.
+- `ProductCreateOverlay` (pages/ProductFormPage.tsx) is the reusable way to define a product without leaving the current page.

@@ -32,6 +32,13 @@ async function run(theme) {
     await page.goto(BASE + hash, { waitUntil: 'networkidle0' })
     await settle()
   }
+  const dialogClick = async (text) => {
+    const [el] = await page.$$(`xpath/.//*[@role="dialog"]//button[contains(normalize-space(.), "${text}")]`)
+    if (!el) throw new Error('dialog button not found: ' + text)
+    await el.evaluate((e) => e.scrollIntoView({ block: 'center' }))
+    await el.click()
+    await settle()
+  }
   const clickText = async (text, tag = 'button') => {
     const [el] = await page.$$(`xpath/.//${tag}[contains(normalize-space(.), "${text}")] | .//a[contains(normalize-space(.), "${text}")]`)
     if (!el) throw new Error('not found: ' + text)
@@ -127,7 +134,7 @@ async function run(theme) {
   await fill('#adj-qty', '42')
   check(t('typed digits shown Persian'), (await page.$eval('#adj-qty', (e) => e.value)) === '۴۲')
   check(t('live summary of the change'), (await sheetText()).includes('۴۲ عدد به موجودی اضافه می‌شود'))
-  await clickText('موجودی اولیه', 'button')
+  await dialogClick('موجودی اولیه')
   check(t('opening asks for unit cost (no previous purchase → empty)'), (await page.$eval('#adj-cost', (e) => e.value)) === '')
   await clickText('ثبت', 'button')
   await settle(300)

@@ -138,7 +138,7 @@ export default function StockPage() {
               </label>
             </div>
 
-            {canAdjust && (
+            {canAdjust && !view && (
               <Button variant="secondary" icon="plus" block onClick={() => setView({ kind: 'pick' })} data-testid="opening-stock">
                 ثبت موجودی اولیه کالا
               </Button>
